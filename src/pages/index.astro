@@ -2,6 +2,10 @@
 import Layout from '../layouts/Layout.astro';
 import { sanityClient } from 'sanity:client';
 
+// 👇 加上下面这两行 👇
+import { Image } from 'astro:assets';
+import heroBg from '../assets/hero-drill.jpg'; 
+
 // 🚀 魔法在这里：向云端请求最新的3个箱包数据
 const products = await sanityClient.fetch(`*[_type == "product"] | order(_createdAt desc)[0...3] {
   title,
@@ -38,11 +42,11 @@ const products = await sanityClient.fetch(`*[_type == "product"] | order(_create
         </div>
         <div class="relative">
           <div class="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
-          <img 
-  src="/images/hero-drill.jpg" 
+          <Image 
+  src={heroBg} 
   alt="Premium OEM/ODM Luggage and Backpack" 
-  fetchpriority="high"
   loading="eager"
+  fetchpriority="high"
   class="w-full h-full object-cover"
 />
           </div>
