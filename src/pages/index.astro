@@ -1,0 +1,232 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+
+// 🚀 魔法在这里：向云端请求最新的3个箱包数据
+const products = await sanityClient.fetch(`*[_type == "product"] | order(_createdAt desc)[0...3] {
+  title,
+  "slug": slug.current,
+  "imageUrl": mainImage.asset->url,
+  fabric,
+  supportsMicroInnovation,
+  isBlankLabel
+}`);
+---
+
+<Layout title="Jungle Elite | Design-Driven Luggage Supply Chain">
+  <main class="w-full font-sans text-slate-800">
+
+    {/* Section 1: Hero */}
+    <section class="relative bg-slate-50 pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+      <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10">
+        <div>
+          <span class="inline-block py-1 px-3 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold tracking-wider mb-6">OEM / ODM EXPERTS</span>
+          <h1 class="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight">
+            Your Design-Driven <br/><span class="text-blue-600">Luggage Supply Chain</span><br/> in Shiling.
+          </h1>
+          <p class="mt-6 text-xl text-slate-600 max-w-lg">
+            From market-proven micro-innovation to rapid small-batch production. We turn your creative ideas into reality with zero-risk market testing.
+          </p>
+          <div class="mt-10 flex flex-col sm:flex-row gap-4">
+            <a href="#contact" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-lg text-center transition-all shadow-lg shadow-blue-200">
+              Get a Free Sample Quote
+            </a>
+            <a href="#products" class="px-8 py-4 bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg font-bold text-lg text-center transition-all">
+              View 2026 Trends
+            </a>
+          </div>
+        </div>
+        <div class="relative">
+          <div class="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
+            <img src="https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="Premium Bag Manufacturing" class="w-full h-full object-cover" />
+          </div>
+          <div class="absolute -bottom-6 -left-6 bg-white p-6 rounded-xl shadow-xl border border-slate-100">
+            <p class="font-bold text-slate-900 text-xl">14 Days</p>
+            <p class="text-sm text-slate-500">From sketch to sample</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Section 2: The Shiling Advantage */}
+    <section class="bg-slate-900 text-white py-20">
+      <div class="max-w-7xl mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold mb-4">Located in Huadu Shiling, the World's Luggage Capital</h2>
+        <p class="text-slate-400 max-w-2xl mx-auto mb-16 text-lg">We are not just a trading company; we are your embedded supply chain managers right at the source of global bag manufacturing.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-700">
+          <div class="p-6">
+            <p class="text-5xl font-extrabold text-blue-400 mb-2">20+</p>
+            <p class="text-slate-300 font-medium text-lg">Years Industry Expertise</p>
+          </div>
+          <div class="p-6">
+            <p class="text-5xl font-extrabold text-blue-400 mb-2">500+</p>
+            <p class="text-slate-300 font-medium text-lg">Raw Material Suppliers</p>
+            <p class="text-sm text-slate-500 mt-2">1-hour sourcing capability</p>
+          </div>
+          <div class="p-6">
+            <p class="text-5xl font-extrabold text-blue-400 mb-2">100%</p>
+            <p class="text-slate-300 font-medium text-lg">Local Supply Chain Speed</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Section 3: Our Core Pillars */}
+    <section class="py-24 bg-slate-50">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+          <h2 class="text-4xl font-bold text-slate-900 mb-4">Our Core Capabilities</h2>
+          <p class="text-lg text-slate-600">Built to reduce your risk and accelerate your time-to-market.</p>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-8">
+          <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6 text-2xl">💡</div>
+            <h3 class="text-2xl font-bold mb-3">Micro-Innovation</h3>
+            <p class="text-slate-600">Low-risk market testing. We take market-proven bestsellers and apply targeted upgrades to materials, functions, or aesthetics for quick sampling.</p>
+          </div>
+          <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6 text-2xl">✏️</div>
+            <h3 class="text-2xl font-bold mb-3">Idea to Reality</h3>
+            <p class="text-slate-600">Whether it's modifying an existing style or bringing your original sketch to life, our experienced pattern makers handle it all.</p>
+          </div>
+          <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6 text-2xl">🧵</div>
+            <h3 class="text-2xl font-bold mb-3">Flexible Customization</h3>
+            <p class="text-slate-600">Light customization done right. Adjust fabrics, zippers, pockets, and hardware easily thanks to our deep roots in local material markets.</p>
+          </div>
+          <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6 text-2xl">⚡</div>
+            <h3 class="text-2xl font-bold mb-3">Agile Production</h3>
+            <p class="text-slate-600">We bridge the gap between boutique design and mass production. Start with small-batch orders and scale up with lightning-fast delivery.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Section 4: Dynamic Product Showcase (云端动态抓取) */}
+    <section id="products" class="py-24 bg-white">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="flex justify-between items-end mb-12">
+          <div>
+            <h2 class="text-4xl font-bold text-slate-900 mb-4">Market-Sensitive Collection</h2>
+            <p class="text-lg text-slate-600">Designs crafted with acute market awareness.</p>
+          </div>
+          <a href="/products" class="hidden md:inline-block text-blue-600 font-semibold hover:underline">View All Collection &rarr;</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* 循环渲染云端抓取的数据 */}
+          {products.map((product: any) => (
+            <a href={`/products/${product.slug}`} class="group cursor-pointer block">
+              <div class="aspect-square bg-slate-100 rounded-2xl overflow-hidden mb-4 relative">
+                 {product.supportsMicroInnovation && (
+                   <span class="absolute top-4 left-4 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm z-10">Micro-Innovation</span>
+                 )}
+                 {product.isBlankLabel && (
+                   <span class="absolute top-4 right-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm z-10">Blank Label Stock</span>
+                 )}
+                 {product.imageUrl ? (
+                   <img src={product.imageUrl} alt={product.title} class="w-full h-full object-cover group-hover:scale-105 transition duration-500"/>
+                 ) : (
+                   <div class="w-full h-full flex items-center justify-center bg-slate-200 text-slate-400">No Image</div>
+                 )}
+              </div>
+              <h3 class="text-xl font-bold text-slate-900">{product.title}</h3>
+              <p class="text-slate-500 mt-1">{product.fabric || 'Premium Material'}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* Section 5: Transparent Supply Chain */}
+    <section class="py-24 bg-slate-900 text-white overflow-hidden">
+      <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+        <div class="order-2 md:order-1 grid grid-cols-2 gap-4">
+           <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=500&q=80" alt="R&D" class="rounded-xl w-full h-48 object-cover" />
+           <img src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=500&q=80" alt="QC" class="rounded-xl w-full h-48 object-cover mt-8" />
+        </div>
+        <div class="order-1 md:order-2">
+          <h2 class="text-4xl font-bold mb-6">More than a factory. We are your eyes in the supply chain.</h2>
+          <p class="text-slate-400 text-lg mb-8">From rigorous R&D pattern making to strict QC inspections, our transparency ensures your brand's reputation is always protected.</p>
+          <div class="flex gap-4">
+             <div class="px-4 py-3 border border-slate-700 rounded-lg bg-slate-800 font-semibold">ISO 9001</div>
+             <div class="px-4 py-3 border border-slate-700 rounded-lg bg-slate-800 font-semibold">BSCI</div>
+             <div class="px-4 py-3 border border-slate-700 rounded-lg bg-slate-800 font-semibold">Rheinland Audit</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Section 6: Simple 4-Step Process */}
+    <section class="py-24 bg-slate-50">
+      <div class="max-w-7xl mx-auto px-6 text-center">
+        <h2 class="text-4xl font-bold text-slate-900 mb-16">Simple & Agile Process</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div class="relative">
+            <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 relative z-10">1</div>
+            <h3 class="text-xl font-bold mb-2">Consultation</h3>
+            <p class="text-slate-600 text-sm">Share your ideas, target market, or reference samples.</p>
+          </div>
+          <div class="relative">
+            <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 relative z-10">2</div>
+            <h3 class="text-xl font-bold mb-2">Design & Sampling</h3>
+            <p class="text-slate-600 text-sm">Rapid prototyping and micro-innovation adjustments.</p>
+          </div>
+          <div class="relative">
+            <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 relative z-10">3</div>
+            <h3 class="text-xl font-bold mb-2">Market Testing</h3>
+            <p class="text-slate-600 text-sm">Low-MOQ trial production to test market response.</p>
+          </div>
+          <div class="relative">
+            <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 relative z-10">4</div>
+            <h3 class="text-xl font-bold mb-2">Bulk Production</h3>
+            <p class="text-slate-600 text-sm">Scaled manufacturing with strict quality control.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Section 7: Conversion Hub */}
+    <section id="contact" class="py-24 bg-blue-600 text-white">
+      <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16">
+        <div>
+          <h2 class="text-4xl font-bold mb-6">Ready to bring your bag concepts to life?</h2>
+          <p class="text-blue-100 text-lg mb-10">Whether you need a quick quote on an existing design or want to start a custom project from scratch, our Shiling experts are here to help.</p>
+          
+          <div class="bg-blue-700 p-8 rounded-2xl border border-blue-500">
+            <h3 class="text-2xl font-bold mb-2">🎁 Free Lead Magnet</h3>
+            <p class="mb-6 text-blue-100">Download our exclusive "2026 Luggage Industry Trend & Material Report".</p>
+            <button class="px-6 py-3 bg-white text-blue-700 font-bold rounded-lg hover:bg-slate-100 transition w-full text-center">
+              Download Report
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-white p-10 rounded-3xl shadow-2xl text-slate-800">
+          <h3 class="text-2xl font-bold mb-6">Request a Quick Quote</h3>
+          <form class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Name / Company</label>
+              <input type="text" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none" placeholder="John Doe from Acme Corp">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+              <input type="email" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none" placeholder="john@example.com">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Project Details</label>
+              <textarea rows="4" class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none" placeholder="Tell us about your bag design, materials, or target MOQ..."></textarea>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-4 rounded-lg transition-colors">
+              Send Inquiry
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</Layout>

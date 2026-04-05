@@ -1,0 +1,37 @@
+---
+import '../styles/global.css';
+
+// 扩展props，支持传递SEO相关参数（可选参数，默认值为空）
+interface Props {
+  title: string;
+  description?: string;
+  siteUrl?: string;
+}
+
+const { title, description = '', siteUrl = '' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <!-- 统一管理所有SEO标签，避免页面重复写 -->
+    {description && <meta name="description" content={description} />}
+    {siteUrl && <link rel="canonical" href={siteUrl} />}
+    <!-- Open Graph 社交分享标签 -->
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    {siteUrl && <meta property="og:url" content={siteUrl} />}
+    <meta property="og:type" content="website" />
+    <!-- Twitter 卡片标签 -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+  </head>
+  <body>
+    <!-- slot 用于插入页面内容 -->
+    <slot />
+  </body>
+</html>

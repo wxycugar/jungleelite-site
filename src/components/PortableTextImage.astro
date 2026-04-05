@@ -1,0 +1,14 @@
+---
+import { sanityClient } from 'sanity:client';
+import imageUrlBuilder from '@sanity/image-url';
+
+const builder = imageUrlBuilder(sanityClient);
+const { node } = Astro.props; 
+const url = builder.image(node).url();
+---
+
+<img 
+  src={url} 
+  alt="Product Detail" 
+  class="rounded-2xl my-8 shadow-lg block mx-auto w-auto max-w-full lg:max-w-[1000px] h-auto object-contain" 
+/>

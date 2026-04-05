@@ -1,0 +1,220 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+import { PortableText } from 'astro-portabletext';
+import PortableTextImage from '../../components/PortableTextImage.astro';
+
+export async function getStaticPaths() {
+  const products = await sanityClient.fetch(`*[_type == "product"]{ "slug": slug.current }`);
+  return products.map((product: any) => ({
+    params: { slug: product.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+const product = await sanityClient.fetch(`*[_type == "product" && slug.current == $slug][0]{
+  title, sku, priceRange, moq, sampleLeadTime, productionLeadTime, fabric, lining, capacity, dimensions, weight, description,
+  supportsMicroInnovation, 
+  isBlankLabel,
+  "imageUrl": mainImage.asset->url,
+  "galleryImages": gallery[].asset->url,
+  "colors": colorVariants[]{ colorName, colorValue, "imageUrl": image.asset->url }
+}`, { slug });
+
+const components = {
+  type: { image: PortableTextImage },
+};
+---
+
+<Layout title={`${product.title} | Jungle Elite`}>
+  <main class="w-full bg-slate-50/50 min-h-screen py-16 lg:py-20 font-sans text-slate-800 relative">
+    <div class="max-w-7xl mx-auto px-6">
+      
+      <nav class="text-sm text-slate-400 mb-8 font-medium tracking-wide">
+        <a href="/" class="hover:text-slate-900 transition">Home</a> <span class="mx-2">/</span> 
+        <a href="/#products" class="hover:text-slate-900 transition">Products</a> <span class="mx-2">/</span> 
+        <span class="text-slate-900">{product.title}</span>
+      </nav>
+
+      <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden mb-5 flex flex-col md:flex-row items-stretch">
+        
+        <div class="md:w-1/2 p-8 lg:p-12 flex items-center justify-center border-r border-slate-50 relative">
+          {product.imageUrl ? (
+            <img 
+              id="main-product-image" 
+              src={product.imageUrl} 
+              alt={product.title} 
+              class="w-full h-auto object-contain max-h-[550px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.12)] transition-opacity duration-300" 
+            />
+          ) : (
+            <div class="py-40 text-slate-300 italic">No Main Image</div>
+          )}
+        </div>
+
+        <div class="md:w-1/2 flex flex-col justify-between p-8 lg:p-12">
+          
+          <div>
+            <h1 class="text-xl lg:text-2xl font-extrabold text-slate-900 leading-snug mb-2 line-clamp-2" title={product.title}>
+              {product.title}
+            </h1>
+            <p class="text-lg lg:text-xl font-bold text-slate-800 tracking-tight">
+              {product.priceRange || 'Price on Request'}
+            </p>
+          </div>
+
+          <div class="flex-1 flex flex-col justify-center py-8">
+            
+            {product.colors && product.colors.length > 0 && (
+              <div class="mb-8">
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-[0.15em] mb-3">Colors</p>
+                <div class="flex flex-wrap gap-3">
+                  {product.colors.map((color: any) => (
+                    <button
+                      class="color-btn w-8 h-8 rounded-full border border-slate-300 focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:scale-110 transition-all relative group cursor-pointer shadow-sm"
+                      style={`background-color: ${color.colorValue}`}
+                      data-image={color.imageUrl}
+                      data-default={product.imageUrl}
+                    >
+                      <span class="absolute -top-9 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-[11px] py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                        {color.colorName}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div class="w-full">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-4">
+                {[
+                  ['MOQ', product.moq ? `${product.moq} Pcs` : 'Negotiable'],
+                  ['Sample Time', product.sampleLeadTime || '7-10 Days'],
+                  ['Lead Time', product.productionLeadTime || '25-30 Days'],
+                  ['Fabric', product.fabric || 'N/A'],
+                  ['Lining', product.lining || 'N/A'],
+                  ['Capacity', product.capacity || 'N/A'],
+                  ['Size', product.dimensions || 'N/A'],
+                  ['Weight', product.weight || 'N/A']
+                ].map(([label, value]) => (
+                  <div class="flex justify-between items-center border-b border-slate-200 pb-2.5">
+                    <span class="text-slate-500 text-xs uppercase tracking-widest font-semibold">{label}</span>
+                    <span class="text-slate-900 font-bold text-sm text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          <div>
+            <div class="flex flex-wrap gap-2 mb-4">
+              <span class="inline-block bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1.5 rounded uppercase tracking-wider">
+                SKU: {product.sku || 'PENDING'}
+              </span>
+              {product.supportsMicroInnovation && (
+                <span class="inline-block bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1.5 rounded uppercase tracking-wider">
+                  ⚡ Support ODM/OEM
+                </span>
+              )}
+              {product.isBlankLabel && (
+                <span class="inline-block bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1.5 rounded uppercase tracking-wider">
+                  📦 Blank Label
+                </span>
+              )}
+            </div>
+
+            <a href="/#contact" class="block w-full bg-[#0a192f] hover:bg-[#112240] text-white text-base font-bold text-center py-4 rounded-xl transition-all shadow-lg hover:-translate-y-0.5 active:scale-[0.98]">
+              Send Inquiry for Sample
+            </a>
+          </div>
+
+        </div>
+      </div>
+
+      {product.galleryImages && product.galleryImages.length > 0 && (
+        <div class="mb-12">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-5">
+            {product.galleryImages.map((imgUrl: string) => (
+              <div class="aspect-square bg-white rounded-2xl overflow-hidden cursor-pointer gallery-item group border border-slate-100 shadow-sm hover:shadow-md transition">
+                <img src={imgUrl} class="w-full h-full object-cover transition duration-700 group-hover:scale-105 pointer-events-none mix-blend-multiply" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div class="bg-white rounded-[2.5rem] p-10 lg:p-14 border border-slate-100 shadow-sm">
+        <div class="flex items-center gap-4 mb-8">
+          <h2 class="text-xl lg:text-2xl font-extrabold text-slate-900">Product Specifications</h2>
+          <div class="h-px flex-1 bg-slate-200"></div>
+        </div>
+        <div class="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-img:rounded-xl prose-img:shadow-lg">
+           {product.description ? (
+             <PortableText value={product.description} components={components} />
+           ) : (
+             <p class="text-slate-400 italic">Consult our team for full technical specifications.</p>
+           )}
+        </div>
+      </div>
+
+    </div>
+
+    <div id="image-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/95 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+      <button id="close-modal" class="absolute top-6 right-8 text-white hover:text-slate-400 text-5xl font-light">&times;</button>
+      <img id="modal-img" src="" class="max-w-[90%] max-h-[90vh] object-contain rounded-lg shadow-2xl scale-95 transition-transform duration-300" />
+    </div>
+
+  </main>
+</Layout>
+
+<script>
+  const galleryItems = document.querySelectorAll('.gallery-item');
+  const modal = document.getElementById('image-modal');
+  const modalImg = document.getElementById('modal-img') as HTMLImageElement;
+  const closeModal = document.getElementById('close-modal');
+
+  galleryItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      const imgTarget = (e.currentTarget as HTMLElement).querySelector('img');
+      if(imgTarget && modal && modalImg) {
+        modalImg.src = imgTarget.src;
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          modal.classList.remove('opacity-0');
+          modalImg.classList.remove('scale-100');
+        }, 10);
+      }
+    });
+  });
+
+  const hideModal = () => {
+    if(modal && modalImg) {
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+  };
+
+  closeModal?.addEventListener('click', hideModal);
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) hideModal();
+  });
+
+  const colorBtns = document.querySelectorAll('.color-btn');
+  const mainImg = document.getElementById('main-product-image') as HTMLImageElement;
+
+  colorBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const targetBtn = e.currentTarget as HTMLButtonElement;
+      const newImgSrc = targetBtn.getAttribute('data-image');
+      const defaultImgSrc = targetBtn.getAttribute('data-default');
+      
+      if (mainImg) {
+        mainImg.style.opacity = '0';
+        setTimeout(() => {
+          mainImg.src = (newImgSrc && newImgSrc !== 'null') ? newImgSrc : (defaultImgSrc || '');
+          mainImg.style.opacity = '1';
+        }, 150);
+      }
+    });
+  });
+</script>

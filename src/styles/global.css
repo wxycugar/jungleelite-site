@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #16a34a;
+  --primary-dark: #15803d;
+  --secondary: #0f766e;
+  --accent: #f59e0b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
