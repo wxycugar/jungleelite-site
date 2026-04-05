@@ -2,19 +2,19 @@
 import Layout from '../layouts/Layout.astro';
 import { sanityClient } from 'sanity:client';
 
-// 👇 加上下面这两行 👇
-import { Image } from 'astro:assets';
-import heroBg from '../assets/hero-drill.jpg'; 
+// 1. 去 Sanity 拿我们刚才填的标题、副标题和图片网址
+const homeData = await sanityClient.fetch(`
+  *[_type == "homePage"][0]{
+    title,
+    subTitle,
+    "imageUrl": heroImage.asset->url
+  }
+`);
 
-// 🚀 魔法在这里：向云端请求最新的3个箱包数据
-const products = await sanityClient.fetch(`*[_type == "product"] | order(_createdAt desc)[0...3] {
-  title,
-  "slug": slug.current,
-  "imageUrl": mainImage.asset->url,
-  fabric,
-  supportsMicroInnovation,
-  isBlankLabel
-}`);
+// 2. 准备好数据（如果后台没填，就用后面的英文兜底，防止网站崩溃）
+const displayTitle = homeData?.title || "Your Design-Driven Luggage Supply Chain";
+const displaySubTitle = homeData?.subTitle || "From market-proven micro-innovation to rapid small-batch production.";
+const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
 ---
 
 <Layout title="Jungle Elite | Design-Driven Luggage Supply Chain">
@@ -26,11 +26,12 @@ const products = await sanityClient.fetch(`*[_type == "product"] | order(_create
         <div>
           <span class="inline-block py-1 px-3 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold tracking-wider mb-6">OEM / ODM EXPERTS</span>
           <h1 class="text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight">
-            Your Design-Driven <br/><span class="text-blue-600">Luggage Supply Chain</span><br/> in Shiling.
-          </h1>git add .
-          <p class="mt-6 text-xl text-slate-600 max-w-lg">
-            From market-proven micro-innovation to rapid small-batch production. We turn your creative ideas into reality with zero-risk market testing.
-          </p>
+  {displayTitle}
+</h1>
+
+<p class="mt-6 text-xl text-slate-600 max-w-lg">
+  {displaySubTitle}
+</p>
           <div class="mt-10 flex flex-col sm:flex-row gap-4">
             <a href="#contact" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-lg text-center transition-all shadow-lg shadow-blue-200">
               Get a Free Sample Quote
@@ -42,11 +43,11 @@ const products = await sanityClient.fetch(`*[_type == "product"] | order(_create
         </div>
         <div class="relative">
           <div class="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
-          <Image 
-  src={heroBg} 
-  alt="Premium OEM/ODM Luggage and Backpack" 
-  loading="eager"
+          <img 
+  src={`${displayImage}?auto=format&w=1200&q=80`} 
+  alt={displayTitle} 
   fetchpriority="high"
+  loading="eager"
   class="w-full h-full object-cover"
 />
           </div>
