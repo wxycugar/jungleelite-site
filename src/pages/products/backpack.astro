@@ -1,0 +1,31 @@
+---
+// src/pages/products/backpack.astro
+import Layout from '../../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+
+// 🎯 只查询那个唯一的背包产品
+// 假设你在 Sanity 里的产品标题包含 "Backpack" 或者我们直接指定 ID
+const backpackProduct = await sanityClient.fetch(`
+  *[_type == "product"][0]{
+    title,
+    "imageUrl": mainImage.asset->url,
+    fabric,
+    description
+  }
+`);
+---
+
+<Layout title="Backpack Collection | Jungle Elite">
+  <main class="pt-32 px-6 max-w-7xl mx-auto">
+    <h1 class="text-4xl font-bold mb-12 text-slate-900 text-center">Backpack Collection</h1>
+    
+    <div class="max-w-md mx-auto bg-white rounded-3xl overflow-hidden shadow-xl border border-slate-100">
+      <img src={backpackProduct.imageUrl} alt={backpackProduct.title} class="w-full h-80 object-cover" />
+      <div class="p-8">
+        <h2 class="text-2xl font-bold mb-2">{backpackProduct.title}</h2>
+        <p class="text-slate-500 mb-6">{backpackProduct.fabric}</p>
+        <a href="/contact" class="block w-full bg-blue-600 text-white text-center py-3 rounded-xl font-bold">Inquiry Now</a>
+      </div>
+    </div>
+  </main>
+</Layout>
