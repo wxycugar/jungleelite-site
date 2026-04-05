@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import { sanityClient } from 'sanity:client';
 
-// 1. 去 Sanity 拿我们刚才填的标题、副标题和图片网址
+// 1. 去 Sanity 拿我们刚才填的首页数据
 const homeData = await sanityClient.fetch(`
   *[_type == "homePage"][0]{
     title,
@@ -11,7 +11,17 @@ const homeData = await sanityClient.fetch(`
   }
 `);
 
-// 2. 准备好数据（如果后台没填，就用后面的英文兜底，防止网站崩溃）
+// 2. 【核心修复】去 Sanity 拿最下面的箱包产品数据（就是刚才不小心删掉的）
+const products = await sanityClient.fetch(`*[_type == "product"] | order(_createdAt desc)[0...3] {
+  title,
+  "slug": slug.current,
+  "imageUrl": mainImage.asset->url,
+  fabric,
+  supportsMicroInnovation,
+  isBlankLabel
+}`);
+
+// 3. 准备好首页兜底数据
 const displayTitle = homeData?.title || "Your Design-Driven Luggage Supply Chain";
 const displaySubTitle = homeData?.subTitle || "From market-proven micro-innovation to rapid small-batch production.";
 const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
