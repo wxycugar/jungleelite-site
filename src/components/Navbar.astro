@@ -1,7 +1,7 @@
 ---
 // src/components/Navbar.astro
 ---
-<header id="main-nav" class="fixed w-full z-50 top-0 transition-all duration-500 bg-transparent border-b border-transparent">
+<header id="main-nav" class="fixed w-full z-50 top-0 transition-all duration-500 border-b border-slate-200/60 bg-white/95 backdrop-blur-md shadow-sm">
   <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
     
     <a href="/" class="text-2xl font-black text-slate-900 tracking-tighter hover:opacity-80 transition-opacity">
@@ -54,14 +54,14 @@
   const nav = document.getElementById('main-nav');
   
   window.addEventListener('scroll', () => {
-    if (window.scrollY > 20) {
-      // 滚动页面后：注入苹果级毛玻璃、阴影、微白底色
-      nav.classList.remove('bg-transparent', 'border-transparent');
-      nav.classList.add('bg-white/70', 'backdrop-blur-xl', 'border-slate-200/50', 'shadow-[0_4px_30px_rgb(0,0,0,0.03)]');
+    if (window.scrollY > 10) {
+      // 滚动后：底色变透(60%)，毛玻璃加强(2xl)，加入大范围发光阴影
+      nav.classList.add('bg-white/60', 'backdrop-blur-2xl', 'shadow-[0_8px_30px_rgb(0,0,0,0.08)]');
+      nav.classList.remove('bg-white/95', 'backdrop-blur-md', 'shadow-sm');
     } else {
-      // 在最顶部：恢复全透明，融入背景
-      nav.classList.add('bg-transparent', 'border-transparent');
-      nav.classList.remove('bg-white/70', 'backdrop-blur-xl', 'border-slate-200/50', 'shadow-[0_4px_30px_rgb(0,0,0,0.03)]');
+      // 在顶部：底色扎实(95%)，轻微毛玻璃(md)，微弱层次阴影(sm)
+      nav.classList.add('bg-white/95', 'backdrop-blur-md', 'shadow-sm');
+      nav.classList.remove('bg-white/60', 'backdrop-blur-2xl', 'shadow-[0_8px_30px_rgb(0,0,0,0.08)]');
     }
   });
 </script>
