@@ -2,16 +2,22 @@
 import Layout from '../layouts/Layout.astro';
 import { sanityClient } from 'sanity:client';
 
-// 1. 去 Sanity 拿我们刚才填的首页数据
+// 1. 【核心修复】去 Sanity 拿首页所有的动态数据（包含 sec2 到 sec7）
 const homeData = await sanityClient.fetch(`
   *[_type == "homePage"][0]{
     title,
     subTitle,
-    "imageUrl": heroImage.asset->url
+    "imageUrl": heroImage.asset->url,
+    sec2Title, sec2Sub,
+    sec3Title, sec3Sub,
+    sec4Title, sec4Sub,
+    sec5Title, sec5Sub,
+    sec6Title, sec6Sub,
+    sec7Title, sec7Sub
   }
 `);
 
-// 2. 【核心修复】去 Sanity 拿最下面的箱包产品数据（就是刚才不小心删掉的）
+// 2. 去 Sanity 拿最下面的箱包产品数据
 const products = await sanityClient.fetch(`*[_type == "product"] | order(_createdAt desc)[0...3] {
   title,
   "slug": slug.current,
@@ -21,10 +27,35 @@ const products = await sanityClient.fetch(`*[_type == "product"] | order(_create
   isBlankLabel
 }`);
 
-// 3. 准备好首页兜底数据
-const displayTitle = homeData?.title || "Your Design-Driven Luggage Supply Chain";
-const displaySubTitle = homeData?.subTitle || "From market-proven micro-innovation to rapid small-batch production.";
+// 3. 准备好首页数据与兜底文案 (Fallback)
+// Section 1: Hero
+const displayTitle = homeData?.title || "Design-Driven Luggage Supply Chain";
+const displaySubTitle = homeData?.subTitle || "Based in Shiling. We turn ideas into reality through rapid small-batch production and zero-risk testing.";
 const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
+
+// Section 2: Advantage
+const sec2T = homeData?.sec2Title || "Located in Huadu Shiling, the World's Luggage Capital";
+const sec2S = homeData?.sec2Sub || "We are not just a trading company; we are your embedded supply chain managers right at the source of global bag manufacturing.";
+
+// Section 3: Pillars
+const sec3T = homeData?.sec3Title || "Our Core Capabilities";
+const sec3S = homeData?.sec3Sub || "Built to reduce your risk and accelerate your time-to-market.";
+
+// Section 4: Products
+const sec4T = homeData?.sec4Title || "Market-Sensitive Collection";
+const sec4S = homeData?.sec4Sub || "Designs crafted with acute market awareness.";
+
+// Section 5: Supply
+const sec5T = homeData?.sec5Title || "More than a factory. We are your eyes in the supply chain.";
+const sec5S = homeData?.sec5Sub || "From rigorous R&D pattern making to strict QC inspections, our transparency ensures your brand's reputation is always protected.";
+
+// Section 6: Process
+const sec6T = homeData?.sec6Title || "Simple & Agile Process";
+const sec6S = homeData?.sec6Sub || ""; // 预留副标题位置
+
+// Section 7: Contact
+const sec7T = homeData?.sec7Title || "Ready to bring your bag concepts to life?";
+const sec7S = homeData?.sec7Sub || "Whether you need a quick quote on an existing design or want to start a custom project from scratch, our Shiling experts are here to help.";
 ---
 
 <Layout title="Jungle Elite | Design-Driven Luggage Supply Chain">
@@ -36,12 +67,12 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
         <div>
           <span class="inline-block py-1 px-3 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold tracking-wider mb-6">OEM / ODM EXPERTS</span>
           <h1 class="text-4xl md:text-5xl lg:text-[64px] font-extrabold text-slate-900 leading-[1.05] md:leading-[1.1] mb-5 tracking-tight">
-  Design-Driven Luggage Supply Chain
-</h1>
+            {displayTitle}
+          </h1>
 
-<p class="mt-4 mb-8 text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed">
-  Based in Shiling. We turn ideas into reality through rapid small-batch production and zero-risk testing.
-</p>
+          <p class="mt-4 mb-8 text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed">
+            {displaySubTitle}
+          </p>
           <div class="mt-10 flex flex-col sm:flex-row gap-4">
             <a href="#contact" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-lg text-center transition-all shadow-lg shadow-blue-200">
               Get a Free Sample Quote
@@ -54,12 +85,12 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
         <div class="relative">
           <div class="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
           <img 
-  src={`${displayImage}?auto=format&w=1200&q=80`} 
-  alt={displayTitle} 
-  fetchpriority="high"
-  loading="eager"
-  class="w-full h-full object-cover"
-/>
+            src={`${displayImage}?auto=format&w=1200&q=80`} 
+            alt={displayTitle} 
+            fetchpriority="high"
+            loading="eager"
+            class="w-full h-full object-cover"
+          />
           </div>
           <div class="absolute -bottom-6 -left-6 bg-white p-6 rounded-xl shadow-xl border border-slate-100">
             <p class="font-bold text-slate-900 text-xl">14 Days</p>
@@ -72,8 +103,8 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
     {/* Section 2: The Shiling Advantage */}
     <section class="bg-slate-900 text-white py-20">
       <div class="max-w-7xl mx-auto px-6 text-center">
-        <h2 class="text-3xl font-bold mb-4">Located in Huadu Shiling, the World's Luggage Capital</h2>
-        <p class="text-slate-400 max-w-2xl mx-auto mb-16 text-lg">We are not just a trading company; we are your embedded supply chain managers right at the source of global bag manufacturing.</p>
+        <h2 class="text-3xl font-bold mb-4">{sec2T}</h2>
+        <p class="text-slate-400 max-w-2xl mx-auto mb-16 text-lg">{sec2S}</p>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-700">
           <div class="p-6">
@@ -97,8 +128,8 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
     <section class="py-24 bg-slate-50">
       <div class="max-w-7xl mx-auto px-6">
         <div class="text-center mb-16">
-          <h2 class="text-4xl font-bold text-slate-900 mb-4">Our Core Capabilities</h2>
-          <p class="text-lg text-slate-600">Built to reduce your risk and accelerate your time-to-market.</p>
+          <h2 class="text-4xl font-bold text-slate-900 mb-4">{sec3T}</h2>
+          <p class="text-lg text-slate-600">{sec3S}</p>
         </div>
         
         <div class="grid md:grid-cols-2 gap-8">
@@ -126,19 +157,18 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
       </div>
     </section>
 
-    {/* Section 4: Dynamic Product Showcase (云端动态抓取) */}
+    {/* Section 4: Dynamic Product Showcase */}
     <section id="products" class="py-24 bg-white">
       <div class="max-w-7xl mx-auto px-6">
         <div class="flex justify-between items-end mb-12">
           <div>
-            <h2 class="text-4xl font-bold text-slate-900 mb-4">Market-Sensitive Collection</h2>
-            <p class="text-lg text-slate-600">Designs crafted with acute market awareness.</p>
+            <h2 class="text-4xl font-bold text-slate-900 mb-4">{sec4T}</h2>
+            <p class="text-lg text-slate-600">{sec4S}</p>
           </div>
           <a href="/products" class="hidden md:inline-block text-blue-600 font-semibold hover:underline">View All Collection &rarr;</a>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* 循环渲染云端抓取的数据 */}
           {products.map((product: any) => (
             <a href={`/products/${product.slug}`} class="group cursor-pointer block">
               <div class="aspect-square bg-slate-100 rounded-2xl overflow-hidden mb-4 relative">
@@ -170,8 +200,8 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
            <img src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=500&q=80" alt="QC" class="rounded-xl w-full h-48 object-cover mt-8" />
         </div>
         <div class="order-1 md:order-2">
-          <h2 class="text-4xl font-bold mb-6">More than a factory. We are your eyes in the supply chain.</h2>
-          <p class="text-slate-400 text-lg mb-8">From rigorous R&D pattern making to strict QC inspections, our transparency ensures your brand's reputation is always protected.</p>
+          <h2 class="text-4xl font-bold mb-6">{sec5T}</h2>
+          <p class="text-slate-400 text-lg mb-8">{sec5S}</p>
           <div class="flex gap-4">
              <div class="px-4 py-3 border border-slate-700 rounded-lg bg-slate-800 font-semibold">ISO 9001</div>
              <div class="px-4 py-3 border border-slate-700 rounded-lg bg-slate-800 font-semibold">BSCI</div>
@@ -184,8 +214,11 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
     {/* Section 6: Simple 4-Step Process */}
     <section class="py-24 bg-slate-50">
       <div class="max-w-7xl mx-auto px-6 text-center">
-        <h2 class="text-4xl font-bold text-slate-900 mb-16">Simple & Agile Process</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <h2 class="text-4xl font-bold text-slate-900 mb-6">{sec6T}</h2>
+        {/* 如果后台填写了流程的副标题，这里就会显示出来 */}
+        {sec6S && <p class="text-lg text-slate-600 mb-16">{sec6S}</p>}
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mt-10">
           <div class="relative">
             <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 relative z-10">1</div>
             <h3 class="text-xl font-bold mb-2">Consultation</h3>
@@ -214,8 +247,8 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
     <section id="contact" class="py-24 bg-blue-600 text-white">
       <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16">
         <div>
-          <h2 class="text-4xl font-bold mb-6">Ready to bring your bag concepts to life?</h2>
-          <p class="text-blue-100 text-lg mb-10">Whether you need a quick quote on an existing design or want to start a custom project from scratch, our Shiling experts are here to help.</p>
+          <h2 class="text-4xl font-bold mb-6">{sec7T}</h2>
+          <p class="text-blue-100 text-lg mb-10">{sec7S}</p>
           
           <div class="bg-blue-700 p-8 rounded-2xl border border-blue-500">
             <h3 class="text-2xl font-bold mb-2">🎁 Free Lead Magnet</h3>
@@ -250,4 +283,4 @@ const displayImage = homeData?.imageUrl || "/images/hero-drill.jpg";
     </section>
 
   </main>
-</Layout>  
+</Layout>
