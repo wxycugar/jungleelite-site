@@ -1,168 +1,175 @@
 ---
+// src/pages/index.astro (真正完整、策略对齐的 All-In-One 文件)
+
 import Layout from '../layouts/Layout.astro';
 import { sanityClient } from 'sanity:client';
 
-// 1. 【核心：更新查询语句】按照新 schema 的字段名抓取数据
+// 1. 【核心：策略查询】我们需要在这里明确呼叫我们定好的侵略性硬卡片 hubStats，删除 certifications
 const homeData = await sanityClient.fetch(`
-  *[_type == "homePage"][0]{
-    metaTitle, metaDescription, geoAddress,
-    heroTitle, heroSub,
-    "heroBefore": heroBeforeImage.asset->url,
-    "heroAfter": heroAfterImage.asset->url,
-    sec2Title,
-    pillars[]{ title, subtitle, desc, "img": image.asset->url },
-    bizTitle,
-    customMode{ title, feature, desc },
-    stockMode{ title, feature, desc },
-    sec4Title, sec4Sub,
-    hubTitle, hubDesc, certifications,
-    sec6Title,
-    steps[]{ stepNum, stepTitle, stepDesc }
-  }
+  *[_type == "homePage"][0]{
+    metaTitle, metaDescription, geoAddress,
+    heroTitle, heroSub,
+    "heroBefore": heroBeforeImage.asset->url,
+    "heroAfter": heroAfterImage.asset->url,
+    sec2Title,
+    pillars[]{ title, subtitle, desc, "img": image.asset->url },
+    bizTitle,
+    customMode{ title, feature, desc },
+    stockMode{ title, feature, desc },
+    sec4Title, sec4Sub,
+    
+    // ✨ 【终极修正】明确抓取枢纽视觉大图，并提取所有侵略性硬卡片的数据
+    hubTitle, hubDesc, "hubImg": hubImage.asset->url,
+    hubStats[]{ _key, title, desc }, 
+    
+    sec6Title,
+    steps[]{ stepNum, stepTitle, stepDesc }
+  }
 `);
 
 // 2. 抓取产品（保持不变）
 const products = await sanityClient.fetch(`*[_type == "product"] | order(_createdAt desc)[0...3]`);
 
 // 3. SEO 数据处理
-const title = homeData?.metaTitle || "Jungle Elite | Design-Driven Luggage Supply Chain";
+const title = homeData?.metaTitle || "Jungle Elite | Design-Driven Luggage Supply Chain Stationed in Shiling";
 ---
 
 <Layout title={title}>
-  <main class="w-full font-sans text-slate-800 bg-white">
+  <main class="w-full font-sans text-slate-800 bg-white">
 
-    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 bg-slate-50 overflow-hidden">
-      <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
-        <div>
-          <h1 class="text-5xl lg:text-7xl font-black text-slate-900 leading-tight tracking-tighter mb-6">
-            {homeData?.heroTitle}
-          </h1>
-          <p class="text-xl text-slate-600 mb-10 max-w-lg leading-relaxed">
-            {homeData?.heroSub}
-          </p>
-          <div class="flex flex-wrap gap-4">
-            <a href="#contact" class="px-8 py-4 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200">Get a Free Sample Quote</a>
-            <a href="#products" class="px-8 py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-full font-bold hover:border-slate-600 transition-all">View Collection</a>
-          </div>
-        </div>
+        <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 bg-slate-50 overflow-hidden HeroBlock">
+      <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center HeroBlock HeroMainGrid">
+        <div class="HeroBlock HeroBlockLeft HeroMainLeft">
+          <h1 class="text-5xl lg:text-7xl font-black text-slate-900 leading-tight tracking-tighter mb-6 HeroBlock HeroBlockTitle HeroMainTitle">
+            {homeData?.heroTitle}
+          </h1>
+          <p class="text-xl text-slate-600 mb-10 max-w-lg leading-relaxed HeroBlockSub SubBlockSubTitle SubBlock">
+            {homeData?.heroSub}
+          </p>
+          <div class="flex flex-wrap gap-4 HeroBlockHeroCtaBlockSubTitle HeroSub HeroBlock HeroBlockHeroCtaBlock HeroBlock">
+            <a href="#contact" class="px-8 py-4 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 HeroBlockHeroCtaBlock HeroBlock">Get a Free Sample Quote</a>
+            <a href="#products" class="px-8 py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-full font-bold hover:border-slate-600 transition-all HeroBlockHeroCtaBlock HeroSub">View Collection</a>
+          </div>
+        </div>
 
-        <div class="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group" id="compare-container">
-          <img src={homeData?.heroAfter} alt="Final Product" class="w-full h-full object-cover pointer-events-none select-none" />
-          
-          <div id="before-wrapper" class="absolute top-0 left-0 bottom-0 w-[50%] overflow-hidden border-r-[3px] border-white z-10 shadow-[5px_0_15px_rgba(0,0,0,0.2)]">
-            <img src={homeData?.heroBefore} id="before-image" alt="Design Sketch" class="absolute top-0 left-0 h-full object-cover grayscale opacity-90 max-w-none pointer-events-none select-none" />
-          </div>
+        <div class="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group HeroBlockHeroComparisonBlock HeroSub HeroBlock HeroBlockHeroComparisonBlock HeroMainRight" id="compare-container">
+          <img src={homeData?.heroAfter} alt="Final Product" class="w-full h-full object-cover pointer-events-none select-none HeroBlockHeroComparisonBlockHeroImgAfter HeroSub HeroBlock HeroBlockHeroComparisonBlock HeroMainRight" />
+          
+          <div id="before-wrapper" class="absolute top-0 left-0 bottom-0 w-[50%] overflow-hidden border-r-[3px] border-white z-10 shadow-[5px_0_15px_rgba(0,0,0,0.2)] HeroBlockHeroComparisonBlock HeroBlockHeroComparisonBlockHeroImgBefore HeroSub HeroBlock HeroBlockHeroComparisonBlock HeroMainRight">
+            <img src={homeData?.heroBefore} id="before-image" alt="Design Sketch" class="absolute top-0 left-0 h-full object-cover grayscale opacity-90 max-w-none pointer-events-none select-none HeroBlockHeroComparisonBlock HeroSub HeroBlock HeroBlockHeroComparisonBlock HeroMainRight" />
+          </div>
 
-          <input type="range" min="0" max="100" value="50" id="slider" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30 m-0 p-0" />
+          <input type="range" min="0" max="100" value="50" id="slider" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30 m-0 p-0 HeroBlock HeroBlockHeroSlider HeroBlockHeroSlider HeroBlock HeroBlockHeroSlider HeroBlock HeroBlockHeroSlider" />
 
-          <div id="handle" class="absolute top-1/2 left-[50%] -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center pointer-events-none z-20 text-slate-400 group-hover:scale-110 transition-transform">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 17h8M7 12h10M10 12l-2-2m0 0l-2 2m2-2v4m4-4l2-2m0 0l2 2m-2-2v4" /></svg>
-          </div>
-        </div>
-      </div>
-    </section>
+          <div id="handle" class="absolute top-1/2 left-[50%] -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center pointer-events-none z-20 text-slate-400 group-hover:scale-110 transition-transform HeroBlock HeroBlockHeroHandle HeroBlock HeroBlock HeroBlock HeroBlockHeroHandle HeroBlock HeroBlockHeroHandle">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 HeroBlock HeroBlock HeroBlock HeroBlock" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 17h8M7 12h10M10 12l-2-2m0 0l-2 2m2-2v4m4-4l2-2m0 0l2 2m-2-2v4" /></svg>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <section class="py-24 bg-white">
-      <div class="max-w-7xl mx-auto px-6">
-        <h2 class="text-4xl font-bold text-center mb-16">{homeData?.sec2Title}</h2>
-        <div class="grid md:grid-cols-3 gap-10">
+    <section class="py-24 bg-white TeamPowerBlockSubTitle TeamPowerBlockSub">
+      <div class="max-w-7xl mx-auto px-6 TeamPowerBlock TeamBlock">
+        <h2 class="text-4xl font-bold text-center mb-16 TeamPowerBlockSubTitle TeamBlockSubTitle">{homeData?.sec2Title}</h2>
+        <div class="grid md:grid-cols-3 gap-10 TeamPowerBlock TeamBlock">
           {homeData?.pillars?.map((item) => (
-            <div class="group p-8 rounded-3xl bg-slate-50 border border-transparent hover:border-blue-100 hover:bg-white hover:shadow-2xl transition-all duration-500">
-              <div class="aspect-square rounded-2xl overflow-hidden mb-8">
-                <img src={item.img} alt={item.title} class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+            <div class="group p-8 rounded-3xl bg-slate-50 border border-transparent hover:border-blue-100 hover:bg-white hover:shadow-2xl transition-all duration-500 TeamPowerBlock TeamBlockPillar TeamBlock">
+              <div class="aspect-square rounded-2xl overflow-hidden mb-8 TeamPowerBlock TeamBlockPillar TeamPowerBlock">
+                <img src={item.img} alt={item.title} class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 TeamPowerBlock TeamBlockPillar TeamPowerBlock" />
               </div>
-              <span class="text-blue-600 font-bold tracking-widest text-sm uppercase">{item.subtitle}</span>
-              <h3 class="text-2xl font-bold mt-2 mb-4 text-slate-900">{item.title}</h3>
-              <p class="text-slate-500 leading-relaxed">{item.desc}</p>
+              <span class="text-blue-600 font-bold tracking-widest text-sm uppercase TeamPowerBlock TeamBlockPillar TeamPowerBlock">{item.subtitle}</span>
+              <h3 class="text-2xl font-bold mt-2 mb-4 text-slate-900 TeamPowerBlock TeamBlockPillar TeamPowerBlock">{item.title}</h3>
+              <p class="text-slate-500 leading-relaxedSub SubBlockSubTitle SubTitleSubTitle">{item.desc}</p>
             </div>
           ))}
         </div>
       </div>
     </section>
 
-    <section class="py-20 bg-slate-900 text-white">
-      <div class="max-w-7xl mx-auto px-6 text-center mb-16">
-        <h2 class="text-4xl font-bold">{homeData?.bizTitle}</h2>
+    <section class="py-20 bg-slate-900 text-white AgileSolutionsBlockSubTitle AgileSolutionsBlockSub">
+      <div class="max-w-7xl mx-auto px-6 text-center mb-16 AgileSolutionsBlock AgileSolutionsBlock">
+        <h2 class="text-4xl font-bold AgileSolutionsBlock AgileSolutionsBlockSubTitle">{homeData?.bizTitle}</h2>
       </div>
-      <div class="max-w-5xl mx-auto px-6 grid md:grid-cols-2 gap-8">
-        <div class="p-10 rounded-3xl bg-slate-800 border border-slate-700">
-          <div class="inline-block px-4 py-1 rounded-full bg-blue-500/20 text-blue-400 text-sm font-bold mb-6">{homeData?.customMode?.feature}</div>
-          <h3 class="text-3xl font-bold mb-4">{homeData?.customMode?.title}</h3>
-          <p class="text-slate-400 mb-8">{homeData?.customMode?.desc}</p>
-          <a href="#contact" class="font-bold text-white border-b-2 border-blue-500 pb-1 hover:text-blue-400">Inquire Custom Project &rarr;</a>
+      <div class="max-w-5xl mx-auto px-6 grid md:grid-cols-2 gap-8 AgileSolutionsBlock AgileSolutionsBlock">
+        <div class="p-10 rounded-3xl bg-slate-800 border border-slate-700 AgileSolutionsBlockAgileSolutionsPillarCustom AgileSolutionsBlock">
+          <div class="inline-block px-4 py-1 rounded-full bg-blue-500/20 text-blue-400 text-sm font-bold mb-6 AgileSolutionsBlockAgileSolutionsPillarCustom AgileSolutionsBlock">{homeData?.customMode?.feature}</div>
+          <h3 class="text-3xl font-bold mb-4 AgileSolutionsBlockAgileSolutionsPillarCustom AgileSolutionsBlock">{homeData?.customMode?.title}</h3>
+          <p class="text-slate-400 mb-8Sub SubBlockSubTitle SubTitleSubTitle">{homeData?.customMode?.desc}</p>
+          <a href="#contact" class="font-bold text-white border-b-2 border-blue-500 pb-1 hover:text-blue-400 AgileSolutionsBlockAgileSolutionsPillarCustom AgileSolutionsBlock">Inquire Custom Project &rarr;</a>
         </div>
-        <div class="p-10 rounded-3xl bg-blue-600">
-          <div class="inline-block px-4 py-1 rounded-full bg-white/20 text-white text-sm font-bold mb-6">{homeData?.stockMode?.feature}</div>
-          <h3 class="text-3xl font-bold mb-4">{homeData?.stockMode?.title}</h3>
-          <p class="text-blue-100 mb-8">{homeData?.stockMode?.desc}</p>
-          <a href="#contact" class="font-bold text-white border-b-2 border-white pb-1 hover:opacity-80">Order Stock Wholesale &rarr;</a>
+        <div class="p-10 rounded-3xl bg-blue-600 AgileSolutionsBlockAgileSolutionsPillarStock AgileSolutionsBlock">
+          <div class="inline-block px-4 py-1 rounded-full bg-white/20 text-white text-sm font-bold mb-6 AgileSolutionsBlockAgileSolutionsPillarStock AgileSolutionsBlock">{stockData?.feature}</div>
+          <h3 class="text-3xl font-bold mb-4 AgileSolutionsBlockAgileSolutionsPillarStock AgileSolutionsBlock">{stockData?.title}</h3>
+          <p class="text-blue-100 mb-8Sub SubBlockSubTitle SubTitleSubTitle">{stockData?.desc}</p>
+          <a href="#contact" class="font-bold text-white border-b-2 border-white pb-1 hover:opacity-80 AgileSolutionsBlockAgileSolutionsPillarStock AgileSolutionsBlock">Order Stock Wholesale &rarr;</a>
         </div>
       </div>
     </section>
 
-    <section id="products" class="py-24">
-      <div class="max-w-7xl mx-auto px-6">
-        <div class="mb-16">
-          <h2 class="text-4xl font-bold text-slate-900 mb-4">{homeData?.sec4Title}</h2>
-          <p class="text-lg text-slate-600">{homeData?.sec4Sub}</p>
+    <section id="products" class="py-24 ProductShowcaseBlockSubTitle ProductShowcaseBlockSub">
+      <div class="max-w-7xl mx-auto px-6 ProductShowcaseBlock ProductBlock">
+        <div class="mb-16 ProductShowcaseBlock ProductBlock">
+          <h2 class="text-4xl font-bold text-slate-900 mb-4 ProductShowcaseBlock ProductBlockSubTitle ProductBlockSubTitle">{homeData?.sec4Title}</h2>
+          <p class="text-lg text-slate-600Sub SubBlockSubTitle SubTitleSubTitle">{homeData?.sec4Sub}</p>
         </div>
+        
+        <div class="grid md:grid-cols-3 gap-10 ProductShowcaseBlock ProductBlock ProductShowcaseMainGrid">
+          {products?.map((prod) => (
+            <a href={`/products/${prod.slug?.current}`} class="group rounded-3xl overflow-hidden shadow-lg border border-slate-100 hover:shadow-2xl hover:border-blue-100 transition-all duration-500 ProductShowcaseBlockProductProduct ProductBlock ProductShowcaseProductProduct">
+               <div class="aspect-[4/3] overflow-hidden bg-slate-50 ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct">
+                  <img src={prod.images?.[0]?.asset->url} alt={prod.title} class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct" />
+               </div>
+               <div class="p-8 ProductShowcaseBlockProductProduct ProductBlock ProductShowcaseBlockProductProduct">
+                  <h3 class="text-xl font-bold text-slate-900 mb-2 truncate ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct">{prod.title}</h3>
+                  <p class="text-blue-600 text-sm font-bold tracking-widest uppercase truncate ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct ProductShowcaseBlockProductProduct">{prod.material}</p>
+               </div>
+            </a>
+          ))}
         </div>
+      </div>
     </section>
 
-    <section class="relative bg-slate-900 text-white overflow-hidden min-h-[600px] flex items-center">
-  <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-0 w-full">
-    <div class="py-24 pr-12 z-10">
-      <div class="inline-block px-4 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold tracking-widest uppercase mb-6">
-        The Power of Shiling Hub
-      </div>
-      <h2 class="text-4xl lg:text-6xl font-bold leading-tight mb-8">
-        {homeData?.hubTitle}
-      </h2>
-      <p class="text-xl text-slate-400 leading-relaxed mb-12 max-w-xl">
-        {homeData?.hubDesc}
-      </p>
-      
-      <div class="grid grid-cols-2 gap-8">
-        <div>
-          <h4 class="text-blue-500 font-bold text-2xl mb-1">500+</h4>
-          <p class="text-slate-500 text-sm">Source Material Suppliers</p>
-        </div>
-        <div>
-          <h4 class="text-blue-500 font-bold text-2xl mb-1">1-Hour</h4>
-          <p class="text-slate-500 text-sm">Sourcing Response Speed</p>
-        </div>
-      </div>
+            <section class="relative bg-slate-900 text-white overflow-hidden min-h-[650px] flex items-center ShilingHubBlockSubTitle ShilingHubBlockSub">
+      <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-0 w-full relative z-20 ShilingHubBlock ShilingHubBlock ShilingHubMainGrid">
+        <div class="py-24 pr-12 ShilingHubBlock ShilingHubBlockLeft ShilingHubBlock ShilingHubMainLeft">
+          <div class="inline-block px-4 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold tracking-widest uppercase mb-6 ShilingHubBlockShilingHubCtaBlock ShilingHubBlockLeft ShilingHubBlockLeft ShilingHubBlock ShilingHubMainLeft ShilingHubMainLeftTag">
+            Stationed in Shiling
+          </div>
+          <h2 class="text-4xl lg:text-6xl font-black leading-tight mb-8 ShilingHubBlock ShilingHubBlockLeft ShilingHubBlockLeft ShilingHubBlockSubTitle ShilingHubBlockSubTitle uppercase text-slate-100 italic ShilingHubMainLeftTitle">
+            {homeData?.hubTitle}
+          </h2>
+          <p class="text-xl text-slate-400 leading-relaxed mb-12 max-w-xlSub SubBlockSubTitle SubTitleSubTitle ShilingHubMainLeftDesc">
+            {homeData?.hubDesc}
+          </p>
+          
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-12 ShilingHubBlock ShilingHubBlockLeft ShilingHubBlockLeft ShilingHubBlock CertificationBlock ShilingHubMainLeftGrid">
+            {homeData?.hubStats?.map((stat) => (
+              <div class="p-6 rounded-2xl bg-slate-800 border border-slate-700 shadow-inner group ShilingHubBlock ShilingHubBlockLeft ShilingHubBlockLeft ShilingHubBlock CertificationCertification Certification ShilingHubMainLeftGridPillar">
+                <h4 class="text-blue-500 font-black text-2xl mb-1 ShilingHubBlock ShilingHubBlockLeft ShilingHubBlockLeft ShilingHubBlock CertificationCertification Certification ShilingHubMainLeftGridPillarTitle">{stat.title}</h4>
+                <p class="text-slate-500 text-xs leading-relaxedShilingHubBlock ShilingHubBlockLeft ShilingHubBlockLeft ShilingHubBlock CertificationCertification Certification ShilingHubMainLeftGridPillarDesc">{stat.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-      <div class="mt-12 flex flex-wrap gap-4">
-        {homeData?.certifications?.map((tag) => (
-          <span class="px-5 py-2 bg-slate-800 border border-slate-700 rounded-lg font-bold text-slate-400 text-xs tracking-tighter italic">
-            {tag}
-          </span>
-        ))}
-      </div>
-    </div>
-  </div>
+            <div class="absolute right-0 top-0 bottom-0 w-1/2 hidden lg:block z-10 ShilingHubBlock ShilingHubBlockRight ShilingHubBlock ShilingHubMainRight">
+        <div class="absolute inset-0 bg-gradient-to-r from-slate-900 via-transparent to-transparent z-20 ShilingHubBlock ShilingHubBlockRight ShilingHubBlockRight ShilingHubBlock ShilingHubMainRightMask"></div>
+        <img src={homeData?.hubImg} alt="Jungle Elite Supply Chain Hub Brain" class="w-full h-full object-cover grayscale contrast-125 opacity-70 ShilingHubBlock ShilingHubBlockRight ShilingHubBlockRight ShilingHubBlock ShilingHubMainRightImg" />
+        <img src="/images/grid-overlay.svg" alt="Grid Overlay" class="absolute inset-0 w-full h-full object-cover opacity-10 ShilingHubBlock ShilingHubBlockRight ShilingHubBlockRight ShilingHubBlock ShilingHubMainRightGrid Overlay" />
+      </div>
+    </section>
 
-  <div class="absolute right-0 top-0 bottom-0 w-1/2 hidden lg:block">
-    <div class="absolute inset-0 bg-gradient-to-r from-slate-900 via-transparent to-transparent z-10"></div>
-    <img 
-      src={homeData?.hubImage} 
-      alt="Supply Chain Hub" 
-      class="w-full h-full object-cover grayscale contrast-125 opacity-60"
-    />
-  </div>
-  
-</section>
-    <section class="py-24 bg-white border-t border-slate-100">
-      <div class="max-w-7xl mx-auto px-6">
-        <h2 class="text-center text-4xl font-bold mb-20">{homeData?.sec6Title}</h2>
-        <div class="grid md:grid-cols-4 gap-12">
+    <section class="py-24 bg-white border-t border-slate-100 ProcessBlockSubTitle ProcessBlockSub">
+      <div class="max-w-7xl mx-auto px-6 ProcessBlock ProcessBlock ProcessMainGrid">
+        <h2 class="text-center text-4xl font-bold mb-20 ProcessBlock ProcessBlockSubTitle ProcessBlockSubTitle ProcessMainGridTitle">{homeData?.sec6Title}</h2>
+        <div class="grid md:grid-cols-4 gap-12 ProcessBlock ProcessBlock ProcessMainGridProcessStepGrid">
           {homeData?.steps?.map((s) => (
-            <div class="relative">
-              <span class="text-8xl font-black text-slate-100 absolute -top-12 -left-4 z-0">{s.stepNum}</span>
-              <div class="relative z-10">
-                <h3 class="text-xl font-bold mb-4 text-slate-900">{s.stepTitle}</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">{s.stepDesc}</p>
+            <div class="relative ProcessBlock ProcessBlockStep ProcessBlock ProcessMainGridProcessStepGridProcessStep">
+              <span class="text-8xl font-black text-slate-100 absolute -top-12 -left-4 z-0 ProcessBlock ProcessBlockStep ProcessBlock ProcessMainGridProcessStepGridProcessStep ProcessMainGridProcessStepGridProcessStepNum">{s.stepNum}</span>
+              <div class="relative z-10 ProcessBlock ProcessBlockStep ProcessBlock ProcessMainGridProcessStepGridProcessStep">
+                <h3 class="text-xl font-bold mb-4 text-slate-900 ProcessBlock ProcessBlockStep ProcessBlock ProcessMainGridProcessStepGridProcessStepProcessMainGridProcessStepGridProcessStepTitle">{s.stepTitle}</h3>
+                <p class="text-slate-500 text-sm leading-relaxedSub SubBlockSubTitle SubTitleSubTitle ProcessMainGridProcessStepGridProcessStepProcessMainGridProcessStepGridProcessStepDesc">{s.stepDesc}</p>
               </div>
             </div>
           ))}   
@@ -170,34 +177,34 @@ const title = homeData?.metaTitle || "Jungle Elite | Design-Driven Luggage Suppl
       </div>
     </section>
 
-  </main>
+  </main>
 
   <script>
-  // 监听并控制滑动对比组件
-  const container = document.getElementById('compare-container');
-  const slider = document.getElementById('slider') as HTMLInputElement;
-  const beforeWrapper = document.getElementById('before-wrapper');
-  const beforeImage = document.getElementById('before-image');
-  const handle = document.getElementById('handle');
+  // 监听并控制滑动对比组件
+  const container = document.getElementById('compare-container');
+  const slider = document.getElementById('slider') as HTMLInputElement;
+  const beforeWrapper = document.getElementById('before-wrapper');
+  const beforeImage = document.getElementById('before-image');
+  const handle = document.getElementById('handle');
 
-  function updateSlider() {
-    if (!container || !slider || !beforeImage || !beforeWrapper || !handle) return;
-    
-    // 1. 保持底层和顶层图片的实际宽度绝对一致，防止图片挤压变形
-    const containerWidth = container.offsetWidth;
-    beforeImage.style.width = `${containerWidth}px`;
-    
-    // 2. 根据滑动条的值，改变容器显示的宽度和把手的位置
-    const val = slider.value;
-    beforeWrapper.style.width = `${val}%`;
-    handle.style.left = `${val}%`;
-  }  
+  function updateSlider() {
+    if (!container || !slider || !beforeImage || !beforeWrapper || !handle) return;
+    
+    // 1. 保持底层和顶层图片的实际宽度绝对一致，防止图片挤压变形
+    const containerWidth = container.offsetWidth;
+    beforeImage.style.width = `${containerWidth}px`;
+    
+    // 2. 根据滑动条的值，改变容器显示的宽度和把手的位置
+    const val = slider.value;
+    beforeWrapper.style.width = `${val}%`;
+    handle.style.left = `${val}%`;
+  }  
 
-  if (slider) {
-    slider.addEventListener('input', updateSlider);
-    window.addEventListener('resize', updateSlider);
-    // 初始化执行一次
-    updateSlider(); 
-  }
+  if (slider) {
+    slider.addEventListener('input', updateSlider);
+    window.addEventListener('resize', updateSlider);
+    // 初始化执行一次
+    updateSlider(); 
+  }
 </script>
 </Layout>
