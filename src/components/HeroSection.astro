@@ -1,0 +1,81 @@
+---
+// 导入 Sanity 图像构建工具 (假设你已经配置好了 urlFor)
+import { urlFor } from '../utils/sanity';
+
+const { title, subtitle, beforeImage, afterImage } = Astro.props;
+
+// 利用 Sanity CDN 自动转换为高性能 webp 格式，并限定最大宽度，极大压缩体积
+const beforeImageUrl = urlFor(beforeImage).width(1200).format('webp').url();
+const afterImageUrl = urlFor(afterImage).width(1200).format('webp').url();
+---
+
+<head>
+  <link rel="preload" as="image" href={beforeImageUrl} fetchpriority="high" />
+  <link rel="preload" as="image" href={afterImageUrl} fetchpriority="high" />
+</head>
+
+<section class="hero-container relative w-full overflow-hidden bg-[#F8F9FA] py-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-12">
+    
+    <div class="w-full lg:w-1/2 flex flex-col items-start z-10">
+      <h1 class="text-5xl lg:text-6xl font-bold text-[#1A1F2C] leading-tight mb-6">
+        {title}
+      </h1>
+      <p class="text-lg text-gray-600 mb-8 max-w-lg leading-relaxed">
+        {subtitle}
+      </p>
+      <div class="flex gap-4">
+        <button class="bg-[#1D4ED8] text-white px-8 py-4 rounded-full font-semibold hover:bg-blue-700 transition">
+          Get a Free Sample Quote
+        </button>
+        <button class="bg-white text-[#1A1F2C] border border-gray-200 px-8 py-4 rounded-full font-semibold hover:bg-gray-50 transition">
+          View Collection
+        </button>
+      </div>
+    </div>
+
+    <div class="w-full lg:w-1/2 flex justify-center shadow-2xl rounded-2xl overflow-hidden bg-white relative">
+      <img-comparison-slider class="w-full rounded-2xl outline-none">
+        
+        <img 
+          slot="first" 
+          src={beforeImageUrl} 
+          alt="Original Design Sketch"
+          width="1200" 
+          height="900"
+          loading="eager" 
+          fetchpriority="high" 
+          decoding="sync"
+          class="w-full h-auto object-cover" 
+        />
+        
+        <img 
+          slot="second" 
+          src={afterImageUrl} 
+          alt="Final Market-ready Product"
+          width="1200" 
+          height="900"
+          loading="eager" 
+          fetchpriority="high" 
+          decoding="sync"
+          class="w-full h-auto object-cover" 
+        />
+        
+        <div slot="handle" class="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center cursor-ew-resize">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3"/></svg>
+        </div>
+      </img-comparison-slider>
+    </div>
+
+  </div>
+</section>
+
+<script defer src="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/index.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/img-comparison-slider@8/dist/styles.css" />
+
+<style>
+  /* 微调滑块内部样式，去除默认聚焦边框 */
+  img-comparison-slider:focus {
+    outline: none;
+  }
+</style>

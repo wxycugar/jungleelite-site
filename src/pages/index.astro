@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import HeroSection from '../components/HeroSection.astro'; // 🚀 引入我们新封装的高性能首屏组件
 import { sanityClient } from 'sanity:client';
 
 // 1. 查询首页数据
@@ -7,8 +8,8 @@ const homeData = await sanityClient.fetch(`
   *[_type == "homePage"][0]{
     metaTitle, metaDescription, geoAddress,
     heroTitle, heroSub,
-    "heroBefore": heroBeforeImage.asset->url,
-    "heroAfter": heroAfterImage.asset->url,
+    heroBeforeImage, // 修改：直接抓取图片对象，交给 Hero 组件去做 WebP 压缩
+    heroAfterImage,  // 修改：直接抓取图片对象
     sec2Title,
     pillars[]{ title, subtitle, desc, "img": image.asset->url },
     bizTitle,
@@ -37,36 +38,12 @@ const title = homeData?.metaTitle || "Jungle Elite | Design-Driven Luggage Suppl
 <Layout title={title}>
   <main class="w-full font-sans text-slate-800 bg-white">
 
-    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 bg-slate-50 overflow-hidden">
-      <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
-        <div>
-          <h1 class="text-5xl lg:text-7xl font-black text-slate-900 leading-tight tracking-tighter mb-6">
-            {homeData?.heroTitle}
-          </h1>
-          <p class="text-xl text-slate-600 mb-10 max-w-lg leading-relaxed">
-            {homeData?.heroSub}
-          </p>
-          <div class="flex flex-wrap gap-4">
-            <a href="#contact" class="px-8 py-4 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200">Get a Free Sample Quote</a>
-            <a href="#products" class="px-8 py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-full font-bold hover:border-slate-600 transition-all">View Collection</a>
-          </div>
-        </div>
-
-        <div class="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group" id="compare-container">
-          <img src={homeData?.heroAfter} alt="Final Product" class="w-full h-full object-cover pointer-events-none select-none" />
-          
-          <div id="before-wrapper" class="absolute top-0 left-0 bottom-0 w-[50%] overflow-hidden border-r-[3px] border-white z-10 shadow-[5px_0_15px_rgba(0,0,0,0.2)]">
-            <img src={homeData?.heroBefore} id="before-image" alt="Design Sketch" class="absolute top-0 left-0 h-full object-cover grayscale opacity-90 max-w-none pointer-events-none select-none" />
-          </div>
-
-          <input type="range" min="0" max="100" value="50" id="slider" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30 m-0 p-0" />
-
-          <div id="handle" class="absolute top-1/2 left-[50%] -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center pointer-events-none z-20 text-slate-400 group-hover:scale-110 transition-transform">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 17h8M7 12h10M10 12l-2-2m0 0l-2 2m2-2v4m4-4l2-2m0 0l2 2m-2-2v4" /></svg>
-          </div>
-        </div>
-      </div>
-    </section>
+    <HeroSection 
+      title={homeData?.heroTitle} 
+      subtitle={homeData?.heroSub}
+      beforeImage={homeData?.heroBeforeImage}
+      afterImage={homeData?.heroAfterImage}
+    />
 
     <section class="py-24 bg-white">
       <div class="max-w-7xl mx-auto px-6">
@@ -117,12 +94,12 @@ const title = homeData?.metaTitle || "Jungle Elite | Design-Driven Luggage Suppl
           {products?.map((prod) => (
             <a href={`/products/${prod.slug?.current}`} class="group rounded-3xl overflow-hidden shadow-lg border border-slate-100 hover:shadow-2xl hover:border-blue-100 transition-all duration-500">
               <div class="aspect-[4/3] overflow-hidden bg-slate-50 p-6 flex items-center justify-center">
-  <img 
-    src={prod.imageUrl} 
-    alt={prod.title} 
-    class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" 
-  />
-</div>
+                <img 
+                  src={prod.imageUrl} 
+                  alt={prod.title} 
+                  class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" 
+                />
+              </div>
                <div class="p-8">
                   <h3 class="text-xl font-bold text-slate-900 mb-2 truncate">{prod.title}</h3>
                   <p class="text-blue-600 text-sm font-bold tracking-widest uppercase truncate">{prod.material}</p>
@@ -185,29 +162,4 @@ const title = homeData?.metaTitle || "Jungle Elite | Design-Driven Luggage Suppl
     </section>
 
   </main>
-
-  <script>
-    const container = document.getElementById('compare-container');
-    const slider = document.getElementById('slider') as HTMLInputElement;
-    const beforeWrapper = document.getElementById('before-wrapper');
-    const beforeImage = document.getElementById('before-image');
-    const handle = document.getElementById('handle');
-
-    function updateSlider() {
-      if (!container || !slider || !beforeImage || !beforeWrapper || !handle) return;
-      
-      const containerWidth = container.offsetWidth;
-      beforeImage.style.width = `${containerWidth}px`;
-      
-      const val = slider.value;
-      beforeWrapper.style.width = `${val}%`;
-      handle.style.left = `${val}%`;
-    }  
-
-    if (slider) {
-      slider.addEventListener('input', updateSlider);
-      window.addEventListener('resize', updateSlider);
-      updateSlider(); 
-    }
-  </script>
 </Layout>
