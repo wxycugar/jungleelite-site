@@ -1,0 +1,193 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+import { urlFor } from '../utils/sanity';
+
+interface TriangleMember {
+  title: string;
+  desc: string;
+  image: any;
+}
+
+interface GalleryItem {
+  image: any;
+  caption: string;
+}
+
+const aboutData = await sanityClient.fetch(`
+  *[_type == "aboutPage"][0]{
+    metaTitle, metaDescription,
+    heroTitle, heroSub, heroBgImage,
+    triangleTitle,
+    triangle[]{
+      title, desc, image
+    },
+    hubTitle, hubDescription, hubStats[],
+    galleryTitle,
+    gallery[]{
+      image, caption
+    }
+  }
+`);
+
+const heroBgImageUrl = aboutData?.heroBgImage ? urlFor(aboutData.heroBgImage).width(1920).format('webp').url() : null;
+const title = aboutData?.metaTitle || 'About Jungle Elite | Supply Chain Brain';
+---
+
+<Layout title={title}>
+  <main class="w-full font-sans text-slate-800 bg-white">
+
+    <!-- Hero Section (80vh) -->
+    <section class="relative w-full h-[80vh] overflow-hidden bg-slate-900">
+      {heroBgImageUrl && (
+        <div class="absolute inset-0">
+          <img
+            src={heroBgImageUrl}
+            alt="Supply Chain Hub"
+            width="1920"
+            height="1080"
+            loading="eager"
+            fetchpriority="high"
+            decoding="sync"
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/40"></div>
+        </div>
+      )}
+
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="max-w-4xl mx-auto px-6 text-center text-white z-10">
+          <h1 class="text-6xl lg:text-7xl font-black leading-tight mb-8">
+            {aboutData?.heroTitle}
+          </h1>
+          <p class="text-xl lg:text-2xl text-slate-200 leading-relaxed font-light">
+            {aboutData?.heroSub}
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Iron Triangle Section (Z-Pattern Layout) -->
+    <section class="py-32 bg-white">
+      <div class="max-w-7xl mx-auto px-6">
+        <h2 class="text-5xl font-black text-slate-900 mb-20 text-center">
+          {aboutData?.triangleTitle}
+        </h2>
+
+        <div class="space-y-24">
+          {aboutData?.triangle?.map((member: TriangleMember, idx: number) => (
+            <div class={`grid md:grid-cols-2 gap-12 items-center ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+
+              <div class={idx % 2 === 1 ? 'md:order-2' : 'md:order-1'}>
+                <div class="rounded-3xl overflow-hidden shadow-2xl bg-slate-100">
+                  {member.image ? (
+                    <img
+                      src={urlFor(member.image).width(600).format('webp').url()}
+                      alt={member.title}
+                      width="600"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
+                      class="w-full h-auto object-cover aspect-square"
+                    />
+                  ) : (
+                    <div class="w-full h-96 flex items-center justify-center text-slate-400">
+                      Image pending
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div class={idx % 2 === 1 ? 'md:order-1' : 'md:order-2'}>
+                <div class="inline-block px-4 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold tracking-widest uppercase mb-6">
+                  Member {idx + 1}
+                </div>
+                <h3 class="text-3xl font-black text-slate-900 mb-6 leading-tight">
+                  {member.title}
+                </h3>
+                <p class="text-lg text-slate-600 leading-relaxed mb-6">
+                  {member.desc}
+                </p>
+                <div class="h-1 w-16 bg-gradient-to-r from-blue-600 to-transparent rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Shiling Hub Section (Deep Blue + Frosted Glass) -->
+    <section class="py-32 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] relative overflow-hidden">
+      <div class="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-10 right-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+
+      <div class="max-w-7xl mx-auto px-6 relative z-10">
+        <h2 class="text-5xl font-black text-white mb-8 text-center">
+          {aboutData?.hubTitle}
+        </h2>
+
+        <div class="prose prose-invert max-w-3xl mx-auto text-center mb-16">
+          {aboutData?.hubDescription && (
+            <div class="text-lg text-slate-300 leading-relaxed">
+              {aboutData.hubDescription[0]?.children?.[0]?.text}
+            </div>
+          )}
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          {aboutData?.hubStats?.map((stat: string, idx: number) => (
+            <div
+              class="p-8 rounded-2xl backdrop-blur-md border border-slate-700/50 bg-slate-800/30 hover:border-blue-500/50 hover:bg-slate-800/50 transition-all duration-500"
+            >
+              <div class="inline-block px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold mb-4">
+                Stat {idx + 1}
+              </div>
+              <p class="text-slate-200 leading-relaxed font-medium">
+                {stat}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section class="py-32 bg-white">
+      <div class="max-w-7xl mx-auto px-6">
+        <h2 class="text-5xl font-black text-slate-900 mb-20 text-center">
+          {aboutData?.galleryTitle}
+        </h2>
+
+        <div class="grid md:grid-cols-3 gap-8">
+          {aboutData?.gallery?.map((item: GalleryItem) => (
+            <div class="group relative rounded-2xl overflow-hidden shadow-lg bg-slate-100">
+              {item.image ? (
+                <>
+                  <img
+                    src={urlFor(item.image).width(600).format('webp').url()}
+                    alt={item.caption}
+                    width="600"
+                    height="400"
+                    loading="lazy"
+                    decoding="async"
+                    class="w-full h-80 object-cover group-hover:scale-110 transition-transform duration-700"
+                  />
+                  <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
+                    <p class="text-white font-bold text-lg">
+                      {item.caption}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div class="w-full h-80 flex items-center justify-center text-slate-400">
+                  Image pending
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+  </main>
+</Layout>
