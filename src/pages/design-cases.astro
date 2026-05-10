@@ -1,0 +1,220 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+import { urlFor } from '../utils/sanity';
+
+interface CaseItem {
+  caseName: string;
+  clientRegion: string;
+  challenge: string;
+  solution: string;
+  beforeImage: any;
+  afterImage: any;
+}
+
+interface StepItem {
+  stepTitle: string;
+  stepDesc: string;
+}
+
+const designCasesData = await sanityClient.fetch(`
+  *[_type == "designCasesPage"][0]{
+    metaTitle, metaDescription,
+    heroTitle, heroSub, heroBgImage,
+    casesTitle,
+    cases[]{
+      caseName, clientRegion, challenge, solution, beforeImage, afterImage
+    },
+    processTitle, processDescription,
+    steps[]
+  }
+`);
+
+const heroBgImageUrl = designCasesData?.heroBgImage ? urlFor(designCasesData.heroBgImage).width(1920).format('webp').url() : null;
+const title = designCasesData?.metaTitle || 'Design Cases | Jungle Elite';
+---
+
+<Layout title={title}>
+  <main class="w-full font-sans text-slate-800 bg-white">
+
+    <!-- Hero Section (60vh) -->
+    <section class="relative w-full h-[60vh] overflow-hidden bg-slate-900">
+      {heroBgImageUrl && (
+        <div class="absolute inset-0">
+          <img
+            src={heroBgImageUrl}
+            alt="Design Cases Hero"
+            width="1920"
+            height="1080"
+            loading="eager"
+            fetchpriority="high"
+            decoding="sync"
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-r from-slate-900/85 via-slate-900/70 to-slate-900/50"></div>
+        </div>
+      )}
+
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="max-w-4xl mx-auto px-6 text-center text-white z-10">
+          <h1 class="text-5xl lg:text-6xl font-black leading-tight mb-6">
+            {designCasesData?.heroTitle}
+          </h1>
+          <p class="text-lg lg:text-xl text-slate-200 leading-relaxed font-light">
+            {designCasesData?.heroSub}
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cases Grid Section -->
+    <section class="py-24 bg-white">
+      <div class="max-w-7xl mx-auto px-6">
+        <h2 class="text-5xl font-black text-slate-900 mb-20 text-center">
+          {designCasesData?.casesTitle}
+        </h2>
+
+        <div class="space-y-16">
+          {designCasesData?.cases?.map((caseItem: CaseItem) => (
+            <div class="border border-slate-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow duration-500 bg-white">
+
+              <!-- Case Header -->
+              <div class="px-8 lg:px-12 pt-8 lg:pt-10">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                  <h3 class="text-3xl lg:text-4xl font-black text-slate-900">
+                    {caseItem.caseName}
+                  </h3>
+                  <div class="inline-block px-4 py-2 rounded-full bg-blue-100 text-blue-700 font-bold text-sm tracking-widest uppercase w-fit">
+                    {caseItem.clientRegion}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Images Section (Before / After) -->
+              <div class="px-8 lg:px-12 py-8">
+                <div class="grid md:grid-cols-2 gap-8">
+                  <!-- Before Image -->
+                  <div class="rounded-2xl overflow-hidden bg-slate-100">
+                    {caseItem.beforeImage ? (
+                      <>
+                        <img
+                          src={urlFor(caseItem.beforeImage).width(600).format('webp').url()}
+                          alt={`${caseItem.caseName} - Original Concept`}
+                          width="600"
+                          height="450"
+                          loading="lazy"
+                          decoding="async"
+                          class="w-full h-auto object-cover aspect-[4/3]"
+                        />
+                        <div class="px-4 py-3 bg-white">
+                          <p class="text-xs font-bold text-slate-500 tracking-widest uppercase">Original Concept</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div class="w-full h-80 flex items-center justify-center text-slate-400 bg-slate-100">
+                        Image pending
+                      </div>
+                    )}
+                  </div>
+
+                  <!-- After Image -->
+                  <div class="rounded-2xl overflow-hidden bg-slate-100">
+                    {caseItem.afterImage ? (
+                      <>
+                        <img
+                          src={urlFor(caseItem.afterImage).width(600).format('webp').url()}
+                          alt={`${caseItem.caseName} - Final Product`}
+                          width="600"
+                          height="450"
+                          loading="lazy"
+                          decoding="async"
+                          class="w-full h-auto object-cover aspect-[4/3]"
+                        />
+                        <div class="px-4 py-3 bg-white">
+                          <p class="text-xs font-bold text-slate-500 tracking-widest uppercase">Final Product</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div class="w-full h-80 flex items-center justify-center text-slate-400 bg-slate-100">
+                        Image pending
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Challenge & Solution -->
+              <div class="px-8 lg:px-12 pb-10 grid md:grid-cols-2 gap-10 border-t border-slate-200">
+                <div class="pt-8">
+                  <h4 class="font-black text-slate-900 text-sm tracking-widest uppercase mb-3">Challenge</h4>
+                  <p class="text-slate-600 leading-relaxed">
+                    {caseItem.challenge}
+                  </p>
+                </div>
+                <div class="pt-8">
+                  <h4 class="font-black text-slate-900 text-sm tracking-widest uppercase mb-3">Our Solution</h4>
+                  <p class="text-slate-600 leading-relaxed">
+                    {caseItem.solution}
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Process Section (Timeline / Steps) -->
+    <section class="py-32 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] relative overflow-hidden">
+      <div class="absolute top-20 right-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-20 left-10 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+
+      <div class="max-w-7xl mx-auto px-6 relative z-10">
+        <div class="text-center mb-16">
+          <h2 class="text-5xl font-black text-white mb-6">
+            {designCasesData?.processTitle}
+          </h2>
+          <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+            {designCasesData?.processDescription}
+          </p>
+        </div>
+
+        <div class="relative">
+          <!-- Timeline Line (Desktop only) -->
+          <div class="hidden md:block absolute top-12 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-500/30 to-transparent"></div>
+
+          <!-- Steps Grid -->
+          <div class="grid md:grid-cols-5 gap-6 relative z-10">
+            {designCasesData?.steps?.map((step: StepItem, idx: number) => (
+              <div class="flex flex-col items-center md:items-start">
+                <!-- Step Number Circle -->
+                <div class="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center mb-6 shadow-lg flex-shrink-0">
+                  <span class="text-white font-black text-2xl">{idx + 1}</span>
+                </div>
+
+                <!-- Step Content -->
+                <div class="text-center md:text-left">
+                  <h4 class="text-white font-black text-lg mb-3">
+                    {step.stepTitle}
+                  </h4>
+                  <p class="text-slate-300 text-sm leading-relaxed">
+                    {step.stepDesc}
+                  </p>
+                </div>
+
+                <!-- Arrow (Desktop only) -->
+                {idx < (designCasesData?.steps?.length - 1) && (
+                  <div class="hidden md:block absolute top-12 left-[calc(50%+60px)] w-12 h-1 bg-gradient-to-r from-blue-500 to-transparent">
+                    <div class="absolute right-0 top-1/2 transform translate-y-[-50%] translate-x-[8px] w-0 h-0 border-l-4 border-t-3 border-b-3 border-l-blue-500 border-t-transparent border-b-transparent"></div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</Layout>
