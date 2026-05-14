@@ -14,7 +14,7 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const product = await sanityClient.fetch(`*[_type == "product" && slug.current == $slug][0]{
   title, sku, priceRange, moq, sampleLeadTime, productionLeadTime, fabric, lining, capacity, dimensions, weight, description,
-  supportsMicroInnovation, 
+  supportsMicroInnovation,
   isBlankLabel,
   "imageUrl": mainImage.asset->url,
   "galleryImages": gallery[].asset->url,
@@ -29,22 +29,22 @@ const components = {
 <Layout title={`${product.title} | Jungle Elite`}>
   <main class="w-full bg-slate-50/50 min-h-screen py-16 lg:py-20 font-sans text-slate-800 relative">
     <div class="max-w-7xl mx-auto px-6">
-      
+
       <nav class="text-sm text-slate-400 mb-8 font-medium tracking-wide">
-        <a href="/" class="hover:text-slate-900 transition">Home</a> <span class="mx-2">/</span> 
-        <a href="/#products" class="hover:text-slate-900 transition">Products</a> <span class="mx-2">/</span> 
+        <a href="/" class="hover:text-slate-900 transition">Home</a> <span class="mx-2">/</span>
+        <a href="/products" class="hover:text-slate-900 transition">Products</a> <span class="mx-2">/</span>
         <span class="text-slate-900">{product.title}</span>
       </nav>
 
       <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden mb-5 flex flex-col md:flex-row items-stretch">
-        
+
         <div class="md:w-1/2 p-8 lg:p-12 flex items-center justify-center border-r border-slate-50 relative">
           {product.imageUrl ? (
-            <img 
-              id="main-product-image" 
-              src={product.imageUrl} 
-              alt={product.title} 
-              class="w-full h-auto object-contain max-h-[550px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.12)] transition-opacity duration-300" 
+            <img
+              id="main-product-image"
+              src={product.imageUrl}
+              alt={product.title}
+              class="w-full h-auto object-contain max-h-[550px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.12)] transition-opacity duration-300"
             />
           ) : (
             <div class="py-40 text-slate-300 italic">No Main Image</div>
@@ -52,7 +52,7 @@ const components = {
         </div>
 
         <div class="md:w-1/2 flex flex-col justify-between p-8 lg:p-12">
-          
+
           <div>
             <h1 class="text-xl lg:text-2xl font-extrabold text-slate-900 leading-snug mb-2 line-clamp-2" title={product.title}>
               {product.title}
@@ -63,7 +63,7 @@ const components = {
           </div>
 
           <div class="flex-1 flex flex-col justify-center py-8">
-            
+
             {product.colors && product.colors.length > 0 && (
               <div class="mb-8">
                 <p class="text-xs text-slate-400 uppercase font-bold tracking-[0.15em] mb-3">Colors</p>
@@ -76,14 +76,14 @@ const components = {
                       data-default={product.imageUrl}
                     >
                       <span class="absolute -top-9 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-[11px] py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
-                        {color.colorName}
+                        {product.colorName}
                       </span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
-            
+
             <div class="w-full">
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-4">
                 {[
@@ -207,7 +207,7 @@ const components = {
       const targetBtn = e.currentTarget as HTMLButtonElement;
       const newImgSrc = targetBtn.getAttribute('data-image');
       const defaultImgSrc = targetBtn.getAttribute('data-default');
-      
+
       if (mainImg) {
         mainImg.style.opacity = '0';
         setTimeout(() => {
