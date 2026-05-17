@@ -1,0 +1,91 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+import { urlFor } from '../../utils/sanity';
+
+const posts = await sanityClient.fetch(`
+  *[_type == "post"] | order(publishedAt desc) {
+    title,
+    excerpt,
+    publishedAt,
+    "slug": slug.current,
+    "imageUrl": mainImage.asset->url
+  }
+`);
+
+const formatDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+---
+
+<Layout title="Supply Chain Insights | Jungle Elite">
+  <main class="w-full bg-white font-sans text-slate-800">
+    <section class="max-w-7xl mx-auto px-6 py-24 lg:py-32">
+
+      <!-- Header -->
+      <div class="mb-16">
+        <h1 class="text-5xl lg:text-6xl font-black text-slate-900 leading-tight">
+          Supply Chain Insights
+        </h1>
+        <p class="mt-4 text-lg text-slate-500 max-w-2xl leading-relaxed">
+          Industry trends, design inspiration, and supply chain intelligence
+          from the Jungle Elite team in Shiling, Guangzhou.
+        </p>
+      </div>
+
+      <!-- Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {posts.map((post: any) => (
+          <a
+            href={`/news/${post.slug}`}
+            class="group block bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300"
+          >
+            <!-- Image -->
+            <div class="aspect-[16/10] overflow-hidden bg-slate-100">
+              {post.imageUrl ? (
+                <img
+                  src={post.imageUrl}
+                  alt={post.title}
+                  width="600"
+                  height="375"
+                  loading="lazy"
+                  decoding="async"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+              ) : (
+                <div class="w-full h-full flex items-center justify-center text-slate-300 text-sm">
+                  No Image
+                </div>
+              )}
+            </div>
+
+            <!-- Text -->
+            <div class="p-6">
+              {post.publishedAt && (
+                <time class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {formatDate(post.publishedAt)}
+                </time>
+              )}
+              <h2 class="mt-2 text-lg font-bold text-slate-900 leading-snug group-hover group-hover:text-blue-600 transition-colors line-clamp-2">
+                {post.title}
+              </h2>
+              {post.excerpt && (
+                <p class="mt-2 text-sm text-slate-500 leading-relaxed line-clamp-3">
+                  {post.excerpt}
+                </p>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {posts.length === 0 && (
+        <p class="text-center text-slate-400 py-32">No articles yet. Check back soon.</p>
+      )}
+
+    </section>
+  </main>
+</Layout>
