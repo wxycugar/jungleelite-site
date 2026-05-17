@@ -8,6 +8,7 @@ const posts = await sanityClient.fetch(`
     title,
     excerpt,
     publishedAt,
+    postType,
     "slug": slug.current,
     "imageUrl": mainImage.asset->url
   }
@@ -64,6 +65,11 @@ const formatDate = (d: string) =>
 
             <!-- Text -->
             <div class="p-6">
+              {post.postType && (
+                <span class="inline-block mb-3 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 uppercase tracking-[0.15em] rounded-full">
+                  {post.postType === 'news' ? 'INDUSTRY NEWS' : 'COMPANY BLOG'}
+                </span>
+              )}
               {post.publishedAt && (
                 <time class="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {formatDate(post.publishedAt)}
