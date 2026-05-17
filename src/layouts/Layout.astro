@@ -1,6 +1,7 @@
 ---
-// 1. 引入全局导航栏和样式
+// 1. 引入全局导航栏、页脚和样式
 import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
 // 2. 统一支持SEO相关参数
@@ -36,6 +37,8 @@ const { title, description = '', siteUrl = '' } = Astro.props;
   <body class="bg-white">
     <Navbar />
 
-    <slot />
+    <main><slot /></main>
+
+    <Footer />
   </body>
 </html>
