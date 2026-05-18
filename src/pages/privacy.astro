@@ -1,0 +1,64 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { sanityClient } from 'sanity:client';
+import { PortableText } from 'astro-portabletext';
+import PortableTextImage from '../components/PortableTextImage.astro';
+
+interface PrivacyPage {
+  metaTitle?: string;
+  metaDescription?: string;
+  title?: string;
+  lastUpdated?: string;
+  body?: any[];
+}
+
+const data: PrivacyPage | null = await sanityClient.fetch(`
+  *[_type == "privacyPage"][0]{
+    metaTitle, metaDescription,
+    title, lastUpdated, body
+  }
+`);
+
+const title = data?.metaTitle || data?.title || 'Privacy Policy';
+
+const components = {
+  type: { image: PortableTextImage },
+};
+
+const formatDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+---
+
+<Layout title={`${title} | Jungle Elite`} description={data?.metaDescription}>
+  <main class="w-full bg-white font-sans text-slate-800">
+    <div class="max-w-4xl mx-auto px-4 py-16 lg:py-24">
+
+      <!-- Title -->
+      <h1 class="text-4xl lg:text-5xl font-black text-slate-900 leading-tight">
+        {data?.title || 'Privacy Policy'}
+      </h1>
+
+      <!-- Last Updated -->
+      {data?.lastUpdated && (
+        <p class="mt-4 text-sm text-slate-400 font-medium">
+          Last updated: {formatDate(data.lastUpdated)}
+        </p>
+      )}
+
+      <!-- Separator -->
+      <div class="border-b border-slate-200 my-8"></div>
+
+      <!-- Body -->
+      {data?.body && (
+        <div class="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-list:marker:text-slate-400">
+          <PortableText value={data.body} components={components} />
+        </div>
+      )}
+
+    </div>
+  </main>
+</Layout>
