@@ -98,27 +98,77 @@ const formatDate = (d: string) =>
           <PortableText value={post.body} components={components} />
         </div>
       )}
-      {/* --- 新增：实拍图集画廊 --- */}
-      {post.galleryUrls && post.galleryUrls.length > 0 && (
-        <div class="mt-16 border-t border-slate-200 pt-10">
-          <h3 class="text-2xl font-bold text-slate-900 mb-6">
-            Factory Live Evidence (现场实拍)
-          </h3>
-          {/* 响应式网格：手机单列，平板双列，电脑三列 */}
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {post.galleryUrls.map((url: string) => (
-              <div class="aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 shadow-sm border border-slate-200">
-                <img 
-                  src={url} 
-                  alt={`${post.title} - Factory Inspection`} 
-                  loading="lazy" 
-                  class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+     {/* --- 👇 从这里开始替换：实拍图集画廊 (带点击放大功能) --- */}
+  {post.galleryUrls && post.galleryUrls.length > 0 && (
+    <div class="mt-16 border-t border-slate-200 pt-10">
+      <h3 class="text-2xl font-bold text-slate-900 mb-6">
+        Factory Live Evidence
+      </h3>
+      {/* 响应式网格 */}
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {post.galleryUrls.map((url: string) => (
+          <button 
+            class="gallery-btn aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 shadow-sm border border-slate-200 cursor-zoom-in relative group"
+            data-img-src={url}
+          >
+            <img 
+              src={url} 
+              alt={`${post.title} - Factory Inspection`} 
+              loading="lazy" 
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+            />
+            {/* 鼠标悬浮时显示放大图标提示 */}
+            <div class="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <svg class="w-8 h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* 原生的全屏灯箱 (Lightbox) 弹窗 */}
+  <dialog id="lightbox" class="fixed inset-0 z-50 w-full h-full max-w-full max-h-full bg-black/90 p-4 m-0 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 backdrop:bg-black/90">
+    <div class="relative w-full max-w-6xl max-h-[90vh] flex items-center justify-center">
+      <button id="close-lightbox" class="absolute -top-12 right-0 text-white hover:text-slate-300 text-4xl font-light cursor-pointer">&times;</button>
+      <img id="lightbox-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+    </div>
+  </dialog>
+
+  {/* 控制点击放大和关闭的脚本 */}
+  <script>
+    const buttons = document.querySelectorAll('.gallery-btn');
+    const lightbox = document.getElementById('lightbox') as HTMLDialogElement;
+    const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+    const closeBtn = document.getElementById('close-lightbox');
+
+    // 点击图片打开放大镜
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const src = btn.getAttribute('data-img-src');
+        if (src && lightboxImg && lightbox) {
+          lightboxImg.src = src;
+          lightbox.showModal();
+          lightbox.classList.remove('opacity-0', 'pointer-events-none');
+        }
+      });
+    });
+
+    // 关闭放大镜的函数
+    const closeModal = () => {
+      if(lightbox) {
+        lightbox.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => lightbox.close(), 300); // 等待淡出动画结束
+      }
+    };
+
+    // 点击关闭按钮，或点击图片外围的黑色背景，都可以关闭
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (lightbox) lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeModal();
+    });
+  </script>
+  {/* --- 👆 替换到这里结束 --- */}
       <!-- Footer Link -->
       <div class="mt-16 pt-8 border-t border-slate-100">
         <a
