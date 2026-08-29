@@ -1,9 +1,11 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import sanity from '@sanity/astro';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://jungleelite.com',
   vite: {
     plugins: [tailwindcss()],
   },
@@ -14,5 +16,6 @@ export default defineConfig({
       useCdn: false, // 设为 false，确保你后台一发布，前台立马更新
       apiVersion: '2026-04-04', // 锁定今天的 API 版本
     }),
+    sitemap(),
   ],
 });
