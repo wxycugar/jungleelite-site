@@ -6,7 +6,6 @@ const products = await sanityClient.fetch(`
   *[_type == "product"] | order(_createdAt desc){
     title,
     sku,
-    priceRange,
     fabric,
     "slug": slug.current,
     "imageUrl": coalesce(mainImage.asset->url, gallery[0].asset->url)
@@ -41,7 +40,7 @@ const products = await sanityClient.fetch(`
                 <h3 class="text-lg font-bold text-slate-900 mb-1 truncate">{prod.title}</h3>
                 <div class="flex items-center justify-between">
                   <span class="text-blue-600 text-sm font-bold tracking-widest uppercase truncate">{prod.fabric || prod.sku || ''}</span>
-                  <span class="text-slate-700 font-semibold text-sm">{prod.priceRange || ''}</span>
+                  <span class="inline-flex items-center text-blue-600 text-[11px] font-bold uppercase tracking-wider bg-blue-50 border border-blue-100 rounded-full px-2.5 py-0.5">Inquire</span>
                 </div>
               </div>
             </a>
