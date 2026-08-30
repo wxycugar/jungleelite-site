@@ -37,7 +37,7 @@ const products = await sanityClient.fetch(`
       </div>
 
       {products.length > 0 ? (
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {products.map((prod) => (
             <a href={`/product/${prod.slug}`} class="group rounded-3xl overflow-hidden bg-white border border-slate-100 shadow-lg hover:shadow-2xl hover:border-blue-100 transition-all duration-500">
               <div class="aspect-square overflow-hidden bg-slate-50 p-0 flex items-center justify-center">
