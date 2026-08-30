@@ -29,7 +29,7 @@ const products = await sanityClient.fetch(`
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {products.map((prod) => (
             <a href={`/product/${prod.slug}`} class="group rounded-3xl overflow-hidden bg-white border border-slate-100 shadow-lg hover:shadow-2xl hover:border-blue-100 transition-all duration-500">
-              <div class="aspect-[4/3] overflow-hidden bg-slate-50 p-3 flex items-center justify-center">
+              <div class="aspect-[4/3] overflow-hidden bg-slate-50 p-0 flex items-center justify-center">
                 {prod.imageUrl ? (
                   <img src={prod.imageUrl} alt={prod.title} class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
                 ) : (
