@@ -2,6 +2,11 @@
 import Layout from '../../layouts/Layout.astro';
 import { sanityClient } from 'sanity:client';
 
+export interface Props {
+  _id: string;
+  title: string;
+}
+
 export async function getStaticPaths() {
   const categories = await sanityClient.fetch(`*[_type == "category"]{ _id, title, "slug": slug.current }`);
   return categories.map((cat: any) => ({
