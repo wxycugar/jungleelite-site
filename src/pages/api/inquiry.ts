@@ -202,6 +202,8 @@ export const POST: APIRoute = async ({ request }) => {
   notes.push(...tags.map((tag) => `tag ${tag}`));
 
   // ---------- 6. 发信 ----------
+  const recipients = readList('INQUIRY_TO_EMAIL', DEFAULT_RECIPIENTS);
+
   const result = await sendInquiryMail(
     { name, company, email, inquiryType: inquiryType || 'unspecified', message },
     {
@@ -214,7 +216,7 @@ export const POST: APIRoute = async ({ request }) => {
     {
       apiKey: readEnv('RESEND_API_KEY'),
       from: readEnv('INQUIRY_FROM_EMAIL') || DEFAULT_SENDER,
-      to: readList('INQUIRY_TO_EMAIL', DEFAULT_RECIPIENTS),
+      to: recipients,
     },
   );
 
@@ -230,6 +232,13 @@ export const POST: APIRoute = async ({ request }) => {
       500,
     );
   }
+
+  // 成功路径也要留痕。否则一旦「Resend 收了却没投出去」，日志里一无所有，
+  // 只能靠「日志为空」倒推成功——带上 Resend 的 id，两边就能对上号。
+  console.log(
+    `[inquiry] 已投递 id=${result.id ?? '(no-id)'} to=${recipients.join(',')} ` +
+      `tags=${tags.join(' ') || 'none'} notes=${notes.join(' | ') || 'none'}`,
+  );
 
   return json({ ok: true, id: result.id });
 };

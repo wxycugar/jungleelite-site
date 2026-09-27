@@ -40,6 +40,39 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * 邮件正文里的时间一律双时区显示。
+ *
+ * 原先直接写 `new Date().toISOString()`，是给机器看的 UTC 串——业务员读到
+ * `2026-09-27T16:02:05.425Z` 得自己做换算，很容易误以为「邮件晚到了 8 小时」。
+ * 这里同时给出北京时间与 UTC，保留秒，便于和 Vercel 日志逐条对上。
+ *
+ * 用 Intl 而不是手工加 8 小时：中国不实行夏令时，但写死偏移量在换机器、
+ * 换时区配置时容易埋雷，交给时区数据库更稳。
+ */
+function formatSubmittedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+
+  const format = (timeZone: string, label: string) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date);
+
+    const at = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+    return `${at('year')}-${at('month')}-${at('day')} ${at('hour')}:${at('minute')}:${at('second')} (${label})`;
+  };
+
+  return `${format('Asia/Shanghai', '北京时间')} · ${format('UTC', 'UTC')}`;
+}
+
 function buildText(payload: InquiryPayload, ctx: MailContext): string {
   return [
     'New inquiry from jungleelite.com',
@@ -53,7 +86,7 @@ function buildText(payload: InquiryPayload, ctx: MailContext): string {
     payload.message,
     '',
     '---',
-    `Submitted:    ${ctx.submittedAt}`,
+    `Submitted:    ${formatSubmittedAt(ctx.submittedAt)}`,
     `IP:           ${ctx.ip}`,
     `User agent:   ${ctx.userAgent || '—'}`,
     ...(ctx.notes.length ? [`Notes:        ${ctx.notes.join(' | ')}`] : []),
@@ -88,7 +121,7 @@ function buildHtml(payload: InquiryPayload, ctx: MailContext): string {
         <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;color:#0f172a;">${escapeHtml(payload.message)}</div>
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;line-height:1.7;">
-        Submitted: ${escapeHtml(ctx.submittedAt)}<br>
+        Submitted: ${escapeHtml(formatSubmittedAt(ctx.submittedAt))}<br>
         IP: ${escapeHtml(ctx.ip)}<br>
         User agent: ${escapeHtml(ctx.userAgent || '—')}
         ${ctx.notes.length ? `<br>Notes: ${escapeHtml(ctx.notes.join(' | '))}` : ''}
