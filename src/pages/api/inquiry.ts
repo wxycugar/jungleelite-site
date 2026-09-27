@@ -4,7 +4,7 @@ import { sendInquiryMail } from '@/lib/mailer';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
   buildSubjectTags,
-  hasHoneypotValue,
+  findHoneypotHits,
   matchBlacklist,
 } from '@/lib/spam-filter';
 import { verifyTurnstile } from '@/lib/turnstile';
@@ -105,8 +105,14 @@ export const POST: APIRoute = async ({ request }) => {
   const notes: string[] = [];
 
   // ---------- 1. 蜜罐拦截（最高优先级，阻断后续一切执行） ----------
-  if (hasHoneypotValue(payload)) {
-    console.warn(`[inquiry] 蜜罐命中，静默丢弃 ip=${ip}`);
+  const honeypotHits = findHoneypotHits(payload);
+  if (honeypotHits.length) {
+    // 丢弃是静默的、返回的是假成功，日志是唯一能还原现场的记录，务必写全。
+    console.warn(
+      `[inquiry] 蜜罐命中，静默丢弃 ip=${ip} hits=${honeypotHits
+        .map((hit) => `${hit.field}="${hit.value}"`)
+        .join(' ')}`,
+    );
     return fakeSuccess();
   }
 

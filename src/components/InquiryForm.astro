@@ -78,6 +78,7 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
         id="hp-company-fax"
         type="text"
         name="company_fax"
+        data-honeypot
         tabindex="-1"
         autocomplete="off"
         aria-hidden="true"
@@ -87,6 +88,7 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
         id="hp-skype-id"
         type="text"
         name="skype_id_optional"
+        data-honeypot
         tabindex="-1"
         autocomplete="off"
         aria-hidden="true"
@@ -200,6 +202,30 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
     return (window as unknown as { turnstile?: TurnstileApi }).turnstile;
   }
 
+  /**
+   * 判断蜜罐字段里的值是不是「浏览器自动填充」塞进去的。
+   *
+   * 真人绝无可能碰到蜜罐（移出视口 + tabindex=-1 + aria-hidden），所以值只有两个来源：
+   *   1. 浏览器自动填充 / 密码管理器扩展 —— 环境噪声，必须剔除，否则误杀真实询盘；
+   *   2. 自动化脚本注入 —— 这才是要抓的信号。
+   *
+   * 判别依据：
+   *   - `:autofill` / `:-webkit-autofill` 伪类：浏览器亲自填充时会打上，最精准；
+   *   - 从未触发过 input 事件：扩展用 `el.value = x` 静默写入时没有伪类，靠这条兜底。
+   *
+   * 代价是同样静默写值的机器人也能溜过蜜罐——按本项目的业务底线（宁可漏放几条
+   * 推销邮件，也不能误杀一单真实生意），这个取舍是刻意的：它们还要过 Turnstile、
+   * 限流与黑名单三道关。
+   */
+  function isAutofilled(trap: HTMLInputElement): boolean {
+    try {
+      if (trap.matches(':-webkit-autofill') || trap.matches(':autofill')) return true;
+    } catch {
+      /* 浏览器不认识该伪类，交给下面的事件判断 */
+    }
+    return trap.dataset.touched !== '1';
+  }
+
   const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
   const TOKEN_TIMEOUT_MS = 10_000;
   /** 表单距视口多远就开始预载 Turnstile——既不浪费首屏带宽，也不让用户等。 */
@@ -241,6 +267,15 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
     const container = form.querySelector<HTMLElement>('[data-turnstile-container]');
     const siteKey = container?.dataset.sitekey?.trim() ?? '';
     const idleLabel = button?.textContent?.trim() ?? 'Submit';
+
+    // 蜜罐上的 input 事件只可能来自自动化脚本（真人既看不见也 Tab 不到），
+    // 记下来，作为区分「脚本注入」与「浏览器静默填充」的依据。
+    const traps = Array.from(form.querySelectorAll<HTMLInputElement>('[data-honeypot]'));
+    traps.forEach((trap) => {
+      trap.addEventListener('input', () => {
+        trap.dataset.touched = '1';
+      });
+    });
 
     let api: TurnstileApi | null = null;
     let widgetId: string | null = null;
@@ -382,6 +417,13 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
       const body: Record<string, string> = {};
       new FormData(form).forEach((value, key) => {
         if (typeof value === 'string') body[key] = value;
+      });
+
+      // 清掉浏览器/密码管理器自动塞进蜜罐的值——那是环境噪声，不是机器人证据。
+      // 不清会怎样：服务端判定「蜜罐命中」→ 静默丢弃 → 真实询盘凭空消失，
+      // 而用户看到的是「发送成功」。2026-09-27 线上丢失的那两封询盘就是这么没的。
+      traps.forEach((trap) => {
+        if (isAutofilled(trap)) body[trap.name] = '';
       });
 
       try {

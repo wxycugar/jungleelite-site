@@ -15,13 +15,26 @@
  */
 export const HONEYPOT_FIELDS = ['company_fax', 'skype_id_optional'] as const;
 
-/** 只要任一蜜罐字段有非空值，即判定为机器人。 */
-export function hasHoneypotValue(payload: Record<string, unknown>): boolean {
-  return HONEYPOT_FIELDS.some((field) => {
+/**
+ * 返回所有被填了值的蜜罐字段。
+ *
+ * 刻意返回明细而非布尔值：蜜罐是「静默丢弃 + 伪装成功」的，一旦误判，
+ * 用户看到的是发送成功、邮箱里却什么都没有——日志是事后唯一的取证途径，
+ * 必须记下是哪个字段、内容是什么。
+ */
+export function findHoneypotHits(
+  payload: Record<string, unknown>,
+): Array<{ field: string; value: string }> {
+  const hits: Array<{ field: string; value: string }> = [];
+
+  for (const field of HONEYPOT_FIELDS) {
     const value = payload[field];
-    if (value === undefined || value === null) return false;
-    return String(value).trim().length > 0;
-  });
+    if (value === undefined || value === null) continue;
+    const text = String(value).trim();
+    if (text) hits.push({ field, value: text.slice(0, 64) });
+  }
+
+  return hits;
 }
 
 /**
