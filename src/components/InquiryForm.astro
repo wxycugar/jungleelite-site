@@ -1,0 +1,432 @@
+---
+/**
+ * 询盘表单组件。
+ *
+ * 自包含：自带蜜罐、Turnstile 惰性挂载、提交状态机与无障碍播报。
+ * 直接 POST 到本地 SSR API `/api/inquiry`，不经过任何第三方表单服务。
+ *
+ * 因为自带 `data-inquiry-form` 标记与独立的 widget 实例，本组件可在同一页面
+ * 安全复用多次（例如页面内联一份 + 抽屉/弹窗里再挂一份）。
+ */
+export interface Props {
+  /** 配色。contact 页深色卡片用 dark，抽屉/弹窗浅底用 light。 */
+  variant?: 'dark' | 'light';
+  /** 纯展示文案，由调用方注入。 */
+  responseTime?: string;
+  heading?: string;
+  subheading?: string;
+  submitLabel?: string;
+}
+
+const {
+  variant = 'dark',
+  responseTime = '1 hour',
+  heading = 'Send Inquiry to Our Hub',
+  subheading = 'Fill out the form below and our team will respond within',
+  submitLabel = 'Send Inquiry to Our Hub',
+} = Astro.props;
+
+const siteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+
+const palette =
+  variant === 'light'
+    ? {
+        label: 'text-slate-500',
+        input:
+          'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-slate-900',
+        button: 'bg-slate-900 text-white hover:bg-slate-800',
+        note: 'text-slate-500',
+        link: 'text-slate-700',
+      }
+    : {
+        label: 'text-slate-400',
+        input:
+          'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:ring-blue-500',
+        button: 'bg-white text-slate-900 hover:bg-blue-50',
+        note: 'text-slate-500',
+        link: 'text-slate-300',
+      };
+
+const fieldClass = `w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all text-sm ${palette.input}`;
+const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${palette.label}`;
+---
+
+<div class="relative" data-inquiry-root>
+  <h2 class="text-2xl lg:text-3xl font-black text-white mb-2">{heading}</h2>
+  <p class="text-slate-400 text-sm mb-8 leading-relaxed">
+    {subheading}{' '}
+    <span class="text-white font-semibold">{responseTime}</span>.
+  </p>
+
+  <form action="/api/inquiry" method="POST" data-inquiry-form class="relative space-y-5">
+    {/*
+      高阶双重蜜罐。
+      刻意**不使用** display:none / opacity:0 / visibility:hidden——这几类属性
+      恰恰是自动化脚本用来识别陷阱的特征。这里改用绝对定位移出视口，
+      并叠加 aria-hidden + tabindex="-1"，使真人视觉、键盘 Tab、读屏软件三者皆无感知。
+
+      字段名同样经过挑选：避开 `website` / `url` 这类浏览器自动填充与密码管理器
+      会主动填写的名字，改用 B2B 询盘表单里看起来合理、但自动填充不会碰的字段，
+      杜绝真人被自动填充误伤成机器人的可能。
+    */}
+    <div
+      class="absolute -left-[9999px] top-0 h-px w-px overflow-hidden"
+      aria-hidden="true"
+    >
+      <label for="hp-company-fax">Company Fax</label>
+      <input
+        id="hp-company-fax"
+        type="text"
+        name="company_fax"
+        tabindex="-1"
+        autocomplete="off"
+        aria-hidden="true"
+      />
+      <label for="hp-skype-id">Skype ID (optional)</label>
+      <input
+        id="hp-skype-id"
+        type="text"
+        name="skype_id_optional"
+        tabindex="-1"
+        autocomplete="off"
+        aria-hidden="true"
+      />
+    </div>
+
+    <div>
+      <label for="name" class={labelClass}>Name *</label>
+      <input
+        id="name"
+        name="name"
+        type="text"
+        required
+        maxlength="120"
+        placeholder="Your full name"
+        autocomplete="name"
+        class={fieldClass}
+      />
+    </div>
+
+    <div>
+      <label for="company" class={labelClass}>Company</label>
+      <input
+        id="company"
+        name="company"
+        type="text"
+        maxlength="160"
+        placeholder="Your company name"
+        autocomplete="organization"
+        class={fieldClass}
+      />
+    </div>
+
+    <div>
+      <label for="email" class={labelClass}>Email *</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        required
+        maxlength="254"
+        placeholder="your@email.com"
+        autocomplete="email"
+        class={fieldClass}
+      />
+    </div>
+
+    <div>
+      <label for="inquiryType" class={labelClass}>Project Type *</label>
+      <select id="inquiryType" name="inquiryType" required class={`${fieldClass} appearance-none`}>
+        <option value="" disabled selected>Select project type</option>
+        <option value="OEM / ODM">OEM / ODM</option>
+        <option value="Sampling">Sampling</option>
+        <option value="Stock / Wholesale">Stock / Wholesale</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="message" class={labelClass}>Message *</label>
+      <textarea
+        id="message"
+        name="message"
+        required
+        rows="5"
+        maxlength="5000"
+        placeholder="Tell us about your project, requirements, or questions..."
+        class={`${fieldClass} resize-none`}></textarea>
+    </div>
+
+    {/*
+      Turnstile 挂载点。
+      `execution="execute"`：不在渲染时取 token，而是等用户点击 Submit 的瞬间
+      才调用 turnstile.execute()——长表单填十分钟也不会拿到过期 token。
+      这里只放容器，脚本由下面的脚本在表单接近视口时才惰性加载。
+    */}
+    <div data-turnstile-container data-sitekey={siteKey} class="min-h-[65px]"></div>
+
+    <button
+      type="submit"
+      data-submit
+      class={`w-full py-4 px-6 font-black text-sm uppercase tracking-widest rounded-xl transition-colors duration-300 shadow-lg ${palette.button}`}
+    >
+      {submitLabel}
+    </button>
+
+    <p
+      data-status
+      role="status"
+      aria-live="polite"
+      class="hidden text-xs text-center leading-relaxed rounded-xl px-4 py-3"
+    ></p>
+
+    <p class={`text-xs text-center leading-relaxed ${palette.note}`}>
+      By submitting, you agree to our{' '}
+      <a href="/privacy" class={`underline hover:opacity-80 transition-opacity ${palette.link}`}>
+        Privacy Policy
+      </a>. We typically respond within {responseTime} during business hours.
+    </p>
+  </form>
+</div>
+
+<script>
+  type TurnstileApi = {
+    render: (el: HTMLElement, options: Record<string, unknown>) => string;
+    execute: (widgetId?: string) => void;
+    reset: (widgetId?: string) => void;
+  };
+
+  /** Turnstile 由外部 <script> 注入，只能从 window 上取。 */
+  function turnstileGlobal(): TurnstileApi | undefined {
+    return (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+  }
+
+  const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+  const TOKEN_TIMEOUT_MS = 10_000;
+  /** 表单距视口多远就开始预载 Turnstile——既不浪费首屏带宽，也不让用户等。 */
+  const LAZY_ROOT_MARGIN = '200px';
+  const FALLBACK_CONTACT = 'info@jungleelite.com';
+
+  let apiPromise: Promise<TurnstileApi | null> | null = null;
+
+  /** 全页只加载一次 Turnstile SDK（多个表单实例共用）。 */
+  function loadTurnstile(): Promise<TurnstileApi | null> {
+    if (apiPromise) return apiPromise;
+
+    apiPromise = new Promise((resolve) => {
+      const existing = turnstileGlobal();
+      if (existing) {
+        resolve(existing);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = SCRIPT_SRC;
+      script.async = true;
+      script.defer = true;
+      script.addEventListener('load', () => resolve(turnstileGlobal() ?? null));
+      // 被广告拦截器屏蔽 / 网络失败：返回 null，提交仍继续（fail open）。
+      script.addEventListener('error', () => {
+        console.warn('[inquiry] Turnstile SDK 加载失败，将以空 token 提交');
+        resolve(null);
+      });
+      document.head.appendChild(script);
+    });
+
+    return apiPromise;
+  }
+
+  function setupForm(form: HTMLFormElement) {
+    const button = form.querySelector<HTMLButtonElement>('[data-submit]');
+    const status = form.querySelector<HTMLElement>('[data-status]');
+    const container = form.querySelector<HTMLElement>('[data-turnstile-container]');
+    const siteKey = container?.dataset.sitekey?.trim() ?? '';
+    const idleLabel = button?.textContent?.trim() ?? 'Submit';
+
+    let api: TurnstileApi | null = null;
+    let widgetId: string | null = null;
+    let mounted: Promise<void> | null = null;
+
+    /** 提交时正在等待 token 的 resolver；同一时刻只可能有一个。 */
+    let pending: {
+      resolve: (token: string) => void;
+      reject: (error: Error) => void;
+      timer: number;
+    } | null = null;
+
+    function settle(error: Error | null, token = '') {
+      if (!pending) return;
+      const { resolve, reject, timer } = pending;
+      pending = null;
+      window.clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(token);
+    }
+
+    /** 惰性挂载：表单接近视口时才拉 SDK 并渲染 widget。 */
+    function mount(): Promise<void> {
+      if (mounted) return mounted;
+
+      mounted = (async () => {
+        if (!container || !siteKey) return;
+
+        api = await loadTurnstile();
+        if (!api) return;
+
+        widgetId = api.render(container, {
+          sitekey: siteKey,
+          execution: 'execute',
+          callback: (token: string) => settle(null, token),
+          'error-callback': () => settle(new Error('turnstile-error')),
+          'timeout-callback': () => settle(new Error('turnstile-timeout')),
+          // token 过期无需处理：下一次提交会重新 execute() 取新的。
+        });
+      })();
+
+      return mounted;
+    }
+
+    if (container && siteKey) {
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+              observer.disconnect();
+              void mount();
+            }
+          },
+          { rootMargin: LAZY_ROOT_MARGIN },
+        );
+        observer.observe(container);
+      } else {
+        void mount();
+      }
+    }
+
+    /** 点击 Submit 的瞬间才去要 token。 */
+    async function fetchToken(): Promise<string> {
+      if (!siteKey) return '';
+
+      await mount();
+      // mount() 未能拿到 SDK（被拦截/网络失败）时不阻断提交，交由服务端裁决。
+      if (!api || !widgetId) return '';
+
+      const client = api;
+      const id = widgetId;
+      return new Promise<string>((resolve, reject) => {
+        const timer = window.setTimeout(
+          () => settle(new Error('turnstile-timeout')),
+          TOKEN_TIMEOUT_MS,
+        );
+        pending = { resolve, reject, timer };
+        try {
+          client.execute(id);
+        } catch (error) {
+          settle(error instanceof Error ? error : new Error('turnstile-execute-failed'));
+        }
+      });
+    }
+
+    function setBusy(busy: boolean) {
+      if (!button) return;
+      button.disabled = busy;
+      button.classList.toggle('opacity-70', busy);
+      if (busy) button.textContent = 'Sending...';
+      else button.textContent = idleLabel;
+    }
+
+    function setStatus(message: string, tone: 'error' | 'success') {
+      if (!status) return;
+      status.textContent = message;
+      status.classList.remove('hidden', 'bg-red-500/15', 'text-red-300', 'bg-green-500/15', 'text-green-300');
+      if (tone === 'error') status.classList.add('bg-red-500/15', 'text-red-300');
+      else status.classList.add('bg-green-500/15', 'text-green-300');
+    }
+
+    function clearStatus() {
+      status?.classList.add('hidden');
+      if (status) status.textContent = '';
+    }
+
+    function succeed() {
+      form.reset();
+      clearStatus();
+      // token 是一次性的，重置 widget 让下一次提交能重新 execute()。
+      if (api && widgetId) {
+        try {
+          api.reset(widgetId);
+        } catch {
+          /* widget 已失效，忽略 */
+        }
+      }
+      if (!button) return;
+
+      button.textContent = 'Sent Successfully!';
+      button.classList.add('bg-green-500', 'text-white');
+      button.classList.remove('opacity-70');
+
+      window.setTimeout(() => {
+        button.textContent = idleLabel;
+        button.disabled = false;
+        button.classList.remove('bg-green-500', 'text-white');
+      }, 4000);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!button || button.disabled) return;
+
+      setBusy(true);
+      clearStatus();
+
+      // 先把表单摊平成普通对象，连同 token 一起以 JSON 提交。
+      const body: Record<string, string> = {};
+      new FormData(form).forEach((value, key) => {
+        if (typeof value === 'string') body[key] = value;
+      });
+
+      try {
+        // 取 token 失败（超时 / 被拦截器屏蔽）不阻断提交：
+        // 空 token 交给服务端裁决，系统级错误在那边是 fail open 的。
+        try {
+          body['cf-turnstile-response'] = await fetchToken();
+        } catch (error) {
+          console.warn('[inquiry] 获取 Turnstile token 失败，改用空 token 提交', error);
+          body['cf-turnstile-response'] = '';
+        }
+
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        const result: { ok?: boolean; message?: string } = await response
+          .json()
+          .catch(() => ({}));
+
+        if (response.ok && result.ok) {
+          succeed();
+          return;
+        }
+
+        setStatus(
+          result.message ??
+            `Submission failed. Please try again, or email us at ${FALLBACK_CONTACT}.`,
+          'error',
+        );
+        setBusy(false);
+      } catch (error) {
+        console.warn('[inquiry] 提交失败', error);
+        setStatus(
+          `Network error. Please check your connection, or email us at ${FALLBACK_CONTACT}.`,
+          'error',
+        );
+        setBusy(false);
+      }
+    });
+  }
+
+  document
+    .querySelectorAll<HTMLFormElement>('[data-inquiry-form]')
+    .forEach((form) => setupForm(form));
+</script>
