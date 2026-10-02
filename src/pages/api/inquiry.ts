@@ -19,7 +19,7 @@ import { forwardInquiry } from '@/lib/workstation';
  *   3. IP 限流         —— 零成本（进程内计数）
  *   4. Turnstile 校验  —— 一次外网请求，Fail Open
  *   5. 语义特征        —— 零成本；黑名单静默丢弃，软标记改写标题
- *   6. 推送中央工作台  —— 一次外网请求，4s 超时；失败只记备注，绝不阻断第 7 步
+ *   6. 推送中央工作台  —— 与第 7 步并行；失败只记日志，不影响访客与发信
  *   7. 发信            —— 兜底通知；只有这一步失败，才如实告知访客没发出去
  */
 
@@ -208,50 +208,61 @@ export const POST: APIRoute = async ({ request }) => {
   const submittedAt = new Date().toISOString();
   const userAgent = request.headers.get('user-agent')?.slice(0, 300) ?? '';
 
-  // ---------- 6. 推送中央工作台（主路；失败不阻断后续） ----------
-  // 放在发信之前：工作台是主路，邮件是兜底，先主后兜。
-  // 代价是网关挂掉时每个询盘要多等 TIMEOUT_MS 才轮到发信——这是刻意接受的，
-  // 见 workstation.ts 里对超时值的说明。
-  const forwarded = await forwardInquiry(
-    { name, company, email, inquiryType: inquiryType || 'unspecified', message },
-    {
-      ip,
-      userAgent,
-      referer: request.headers.get('referer')?.slice(0, 300) ?? '',
-      submittedAt,
-      tags,
-      notes,
-    },
-    { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
-  );
+  // ---------- 6. 推送中央工作台 ∥ 7. 发信 ----------
+  // 两步并行，总耗时取决于较慢的那个，而非两者之和。
+  //
+  // 刻意并行而非「先推后发」：串行时网关一旦挂掉，访客要多等一整个超时
+  // 才轮到发信——为了一行只给业务员看的备注，让真实买家在提交按钮上多等
+  // 4 秒，在 B2B 转化链路上不划算。并行后网关的抖动不再叠加到访客身上，
+  // 而 4s 的超时又短于发信的 10s，所以网关永远不会成为那个拖后腿的。
+  //
+  // 代价：邮件正文里再也写不进「工作台推送失败」的备注——发信与推送同时
+  // 出发，等拿到推送结果时邮件早已投出。失败只留在 Vercel 日志里
+  // （[workstation] 与 [inquiry] 两处都有）。这是刻意接受的取舍，
+  // 不要再为了那行备注把两者改回串行。
+  //
+  // 前提：forwardInquiry 与 sendInquiryMail 都约定「永不抛错」，只以返回值
+  // 表达失败。Promise.all 一荣俱荣，谁破坏了这个约定谁就会连带打断另一条链路。
+  const recipients = readList('INQUIRY_TO_EMAIL', DEFAULT_RECIPIENTS);
+
+  const [forwarded, result] = await Promise.all([
+    forwardInquiry(
+      { name, company, email, inquiryType: inquiryType || 'unspecified', message },
+      {
+        ip,
+        userAgent,
+        referer: request.headers.get('referer')?.slice(0, 300) ?? '',
+        submittedAt,
+        tags,
+        notes,
+      },
+      { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
+    ),
+
+    sendInquiryMail(
+      { name, company, email, inquiryType: inquiryType || 'unspecified', message },
+      {
+        subjectPrefix: tags.length ? `${tags.join(' ')} ` : '',
+        ip,
+        userAgent,
+        submittedAt,
+        notes,
+      },
+      {
+        apiKey: readEnv('RESEND_API_KEY'),
+        from: readEnv('INQUIRY_FROM_EMAIL') || DEFAULT_SENDER,
+        to: recipients,
+      },
+    ),
+  ]);
 
   if (forwarded.ok) {
     console.log(`[inquiry] 工作台已接收 id=${forwarded.id ?? '(no-id)'}`);
   } else {
-    // 推送失败不能阻断发信，但必须在邮件里留痕：业务员看到这条备注就知道
-    // 这单只落在邮箱、没进工作台，需要人工补录，而不是当它已经进了系统。
-    console.warn(`[inquiry] 工作台推送未成功：${forwarded.error}（继续走发信兜底）`);
-    notes.push(`workstation: ${forwarded.error}`);
+    // 只记日志，不回写 notes：那个数组此刻已随邮件投出，再改也追不回来，
+    // 而共享数组的隐式修改容易在后续重构里变成难查的时序 bug。
+    console.warn(`[inquiry] 工作台推送未成功：${forwarded.error}`);
   }
-
-  // ---------- 7. 发信 ----------
-  const recipients = readList('INQUIRY_TO_EMAIL', DEFAULT_RECIPIENTS);
-
-  const result = await sendInquiryMail(
-    { name, company, email, inquiryType: inquiryType || 'unspecified', message },
-    {
-      subjectPrefix: tags.length ? `${tags.join(' ')} ` : '',
-      ip,
-      userAgent,
-      submittedAt,
-      notes,
-    },
-    {
-      apiKey: readEnv('RESEND_API_KEY'),
-      from: readEnv('INQUIRY_FROM_EMAIL') || DEFAULT_SENDER,
-      to: recipients,
-    },
-  );
 
   if (!result.ok) {
     // 发信失败是真的丢了线索，必须如实告知用户并给出备用邮箱，不能假装成功。
