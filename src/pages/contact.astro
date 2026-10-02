@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import InquiryForm from '../components/InquiryForm.astro';
 import { sanityClient } from 'sanity:client';
 import { urlFor } from '../utils/sanity';
-import { PHONE_DISPLAY, PHONE_E164, WHATSAPP_URL } from '../lib/contact';
+import { PHONE_DISPLAY, PHONE_E164, WHATSAPP_DISPLAY, WHATSAPP_URL } from '../lib/contact';
 
 interface GalleryItem {
   image: any;
@@ -107,7 +107,7 @@ const title = contactData?.metaTitle || 'Contact Jungle Elite | Supply Chain Bra
               <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">WhatsApp</p>
                 <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" class="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
-                  {PHONE_DISPLAY}
+                  {WHATSAPP_DISPLAY}
                 </a>
               </div>
             </div>
