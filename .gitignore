@@ -6,7 +6,7 @@ dist
 # Vercel 本地构建产物
 .vercel
 
-# 环境变量：含 Turnstile Secret / Resend API Key，绝不入库
+# 环境变量：含 Turnstile Secret / 工作台 API Key，绝不入库
 .env
 .env.*
 !.env.example

@@ -32,13 +32,3 @@ export function readFlag(key: string, fallback: boolean): boolean {
   if (!raw) return fallback;
   return !['0', 'false', 'no', 'off'].includes(raw);
 }
-
-export function readList(key: string, fallback: string[]): string[] {
-  const raw = readEnv(key);
-  if (!raw) return fallback;
-  const items = raw
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return items.length ? items : fallback;
-}

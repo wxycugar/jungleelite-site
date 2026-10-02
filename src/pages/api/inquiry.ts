@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
-import { readEnv, readFlag, readList } from '@/lib/env';
-import { sendInquiryMail } from '@/lib/mailer';
+import { readEnv, readFlag } from '@/lib/env';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
   buildSubjectTags,
@@ -18,9 +17,14 @@ import { forwardInquiry } from '@/lib/workstation';
  *   2. 字段校验        —— 零成本
  *   3. IP 限流         —— 零成本（进程内计数）
  *   4. Turnstile 校验  —— 一次外网请求，Fail Open
- *   5. 语义特征        —— 零成本；黑名单静默丢弃，软标记改写标题
- *   6. 推送中央工作台  —— 与第 7 步并行；失败只记日志，不影响访客与发信
- *   7. 发信            —— 兜底通知；只有这一步失败，才如实告知访客没发出去
+ *   5. 语义特征        —— 零成本；黑名单静默丢弃，软标记随询盘一并送走
+ *   6. 推送中央工作台  —— 唯一的投递出口
+ *
+ * ⚠️ 第 6 步是这条链路**唯一**的去处：网关不可用时，询盘就是真的没送出去。
+ * 正因为没有兜底，这一步失败时必须返回 500 并请访客直接发邮件，绝不能伪装
+ * 成功——访客以为发出去了、我们这边什么都没有，线索就静默蒸发了。
+ * （业务初期为极简架构移除了原先的 Resend 发信兜底；若要恢复「工作台失败
+ * 仍发一封邮件」，在第 6 步那里并行接回一个发信调用即可，git 历史里有实现。）
  */
 
 export const prerender = false;
@@ -36,8 +40,8 @@ const FIELD_LIMITS = {
   inquiryType: 64,
 } as const;
 
-const DEFAULT_RECIPIENTS = ['info@jungleelite.com'];
-const DEFAULT_SENDER = 'Jungle Elite Inquiry <inquiry@jungleelite.com>';
+/** 推送失败时告诉访客的备用联系方式——此刻它是这条线索唯一的去处。 */
+const FALLBACK_CONTACT = 'info@jungleelite.com';
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -203,86 +207,47 @@ export const POST: APIRoute = async ({ request }) => {
   const tags = buildSubjectTags(message);
   notes.push(...tags.map((tag) => `tag ${tag}`));
 
-  // 两条链路共用同一个时间戳：若各取一次 `new Date()`，邮件与工作台里的
-  // 时间会差出几百毫秒，事后按时间对账就得多费一道手工核对。
   const submittedAt = new Date().toISOString();
   const userAgent = request.headers.get('user-agent')?.slice(0, 300) ?? '';
 
-  // ---------- 6. 推送中央工作台 ∥ 7. 发信 ----------
-  // 两步并行，总耗时取决于较慢的那个，而非两者之和。
-  //
-  // 刻意并行而非「先推后发」：串行时网关一旦挂掉，访客要多等一整个超时
-  // 才轮到发信——为了一行只给业务员看的备注，让真实买家在提交按钮上多等
-  // 4 秒，在 B2B 转化链路上不划算。并行后网关的抖动不再叠加到访客身上，
-  // 而 4s 的超时又短于发信的 10s，所以网关永远不会成为那个拖后腿的。
-  //
-  // 代价：邮件正文里再也写不进「工作台推送失败」的备注——发信与推送同时
-  // 出发，等拿到推送结果时邮件早已投出。失败只留在 Vercel 日志里
-  // （[workstation] 与 [inquiry] 两处都有）。这是刻意接受的取舍，
-  // 不要再为了那行备注把两者改回串行。
-  //
-  // 前提：forwardInquiry 与 sendInquiryMail 都约定「永不抛错」，只以返回值
-  // 表达失败。Promise.all 一荣俱荣，谁破坏了这个约定谁就会连带打断另一条链路。
-  const recipients = readList('INQUIRY_TO_EMAIL', DEFAULT_RECIPIENTS);
+  // ---------- 6. 推送中央工作台（唯一投递出口） ----------
+  const forwarded = await forwardInquiry(
+    { name, company, email, inquiryType: inquiryType || 'unspecified', message },
+    {
+      ip,
+      userAgent,
+      referer: request.headers.get('referer')?.slice(0, 300) ?? '',
+      submittedAt,
+      tags,
+      notes,
+    },
+    { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
+  );
 
-  const [forwarded, result] = await Promise.all([
-    forwardInquiry(
-      { name, company, email, inquiryType: inquiryType || 'unspecified', message },
-      {
-        ip,
-        userAgent,
-        referer: request.headers.get('referer')?.slice(0, 300) ?? '',
-        submittedAt,
-        tags,
-        notes,
-      },
-      { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
-    ),
-
-    sendInquiryMail(
-      { name, company, email, inquiryType: inquiryType || 'unspecified', message },
-      {
-        subjectPrefix: tags.length ? `${tags.join(' ')} ` : '',
-        ip,
-        userAgent,
-        submittedAt,
-        notes,
-      },
-      {
-        apiKey: readEnv('RESEND_API_KEY'),
-        from: readEnv('INQUIRY_FROM_EMAIL') || DEFAULT_SENDER,
-        to: recipients,
-      },
-    ),
-  ]);
-
-  if (forwarded.ok) {
-    console.log(`[inquiry] 工作台已接收 id=${forwarded.id ?? '(no-id)'}`);
-  } else {
-    // 只记日志，不回写 notes：那个数组此刻已随邮件投出，再改也追不回来，
-    // 而共享数组的隐式修改容易在后续重构里变成难查的时序 bug。
-    console.warn(`[inquiry] 工作台推送未成功：${forwarded.error}`);
-  }
-
-  if (!result.ok) {
-    // 发信失败是真的丢了线索，必须如实告知用户并给出备用邮箱，不能假装成功。
+  if (!forwarded.ok) {
+    // 没有兜底链路了，推送失败就是真的没送出去，必须如实告知访客并给出备用
+    // 邮箱。绝不能返回假成功——那会让线索静默蒸发，正是当初蜜罐误判踩过的坑，
+    // 而且这次连邮件都没有，事后在日志之外毫无痕迹。
+    console.error(
+      `[inquiry] 工作台推送失败，询盘未能送达 error=${forwarded.error} ip=${ip} email=${email}`,
+    );
     return json(
       {
         ok: false,
-        error: result.error,
-        message:
-          'We could not send your inquiry right now. Please email us directly at info@jungleelite.com.',
+        error: forwarded.error,
+        message: `We could not send your inquiry right now. Please email us directly at ${FALLBACK_CONTACT}.`,
       },
       500,
     );
   }
 
-  // 成功路径也要留痕。否则一旦「Resend 收了却没投出去」，日志里一无所有，
-  // 只能靠「日志为空」倒推成功——带上 Resend 的 id，两边就能对上号。
+  // 成功路径也要留痕：网关收了却没落库时，日志是唯一能对上号的东西。
   console.log(
-    `[inquiry] 已投递 id=${result.id ?? '(no-id)'} to=${recipients.join(',')} ` +
+    `[inquiry] 已推送 id=${forwarded.id ?? '(no-id)'} ip=${ip} ` +
       `tags=${tags.join(' ') || 'none'} notes=${notes.join(' | ') || 'none'}`,
   );
 
-  return json({ ok: true, id: result.id });
+  // 不回传网关的记录 id：那是内部标识，对访客没有意义，前端也不消费，
+  // 白白泄露一条内部信息出去。
+  return json({ ok: true });
 };
