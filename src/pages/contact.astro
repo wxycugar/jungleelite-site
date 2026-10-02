@@ -3,12 +3,15 @@ import Layout from '../layouts/Layout.astro';
 import InquiryForm from '../components/InquiryForm.astro';
 import { sanityClient } from 'sanity:client';
 import { urlFor } from '../utils/sanity';
+import { PHONE_DISPLAY, PHONE_E164, WHATSAPP_URL } from '../lib/contact';
 
 interface GalleryItem {
   image: any;
   caption: string;
 }
 
+// 注意：whatsapp 刻意不再从 CMS 读取——号码统一由 src/lib/contact.ts 提供，
+// 否则站内四处各存一份，改号时极易漏改。
 const contactData = await sanityClient.fetch(`
   *[_type == "contactPage"][0]{
     metaTitle, metaDescription,
@@ -17,7 +20,7 @@ const contactData = await sanityClient.fetch(`
     gallery[]{
       image, caption
     },
-    email, whatsapp, address, responseTime
+    email, address, responseTime
   }
 `);
 
@@ -75,8 +78,22 @@ const title = contactData?.metaTitle || 'Contact Jungle Elite | Supply Chain Bra
               </div>
               <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Email</p>
-                <a href="mailto:{contactData?.email}" class="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
+                <a href={`mailto:${contactData?.email}`} class="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
                   {contactData?.email}
+                </a>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-5 p-5 bg-[#F8FAFC] border border-slate-100 rounded-xl">
+              <div class="w-11 h-11 flex-shrink-0 rounded-lg bg-slate-900 flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Phone</p>
+                <a href={`tel:${PHONE_E164}`} class="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
+                  {PHONE_DISPLAY}
                 </a>
               </div>
             </div>
@@ -89,8 +106,8 @@ const title = contactData?.metaTitle || 'Contact Jungle Elite | Supply Chain Bra
               </div>
               <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">WhatsApp</p>
-                <a href="https://wa.me/{contactData?.whatsapp?.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener noreferrer" class="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
-                  {contactData?.whatsapp}
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" class="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
+                  {PHONE_DISPLAY}
                 </a>
               </div>
             </div>

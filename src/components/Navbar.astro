@@ -1,5 +1,6 @@
 ---
 // src/components/Navbar.astro
+import { WHATSAPP_URL } from '../lib/contact';
 ---
 <header id="main-nav" class="fixed w-full z-50 top-0 transition-all duration-500 border-b border-slate-200/60 bg-white/95 backdrop-blur-md shadow-sm">
   <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
@@ -41,7 +42,7 @@
 
     <div class="flex items-center gap-2 md:gap-4 z-50">
       <a
-        href="https://wa.me/8615913136225"
+        href={WHATSAPP_URL}
         target="_blank"
         class="group flex items-center justify-center gap-2 bg-gradient-to-r from-[#25D366] to-[#1DA851] hover:from-[#1ebd57] hover:to-[#178c43] text-white p-2 md:px-6 md:py-2.5 rounded-full font-bold transition-all duration-300 shadow-[0_8px_20px_rgba(37,211,102,0.3)] hover:shadow-[0_12px_25px_rgba(37,211,102,0.45)] hover:-translate-y-0.5"
       >
