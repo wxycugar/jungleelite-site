@@ -63,11 +63,32 @@ const year = new Date().getFullYear();
 
   <!-- Bottom Bar -->
   <div class="max-w-7xl mx-auto px-6">
-    <div class="border-t border-slate-800/50 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-      <p>&copy; {year} Jungle Elite. All rights reserved.</p>
-      <div class="flex items-center gap-6">
-        <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
-        <a href="/terms" class="hover:text-white transition-colors">Terms of Service</a>
+    <div class="border-t border-slate-800/50 py-8">
+
+      <!--
+        法定主体信息：供 Meta 企业主体真实性审核比对营业执照。
+        文案必须与执照逐字一致——英文名里的 GuangZhou、地址里的 No.12 都是执照原文，
+        不要「顺手规范化」成 Guanghzou / No. 12。
+        同理，这里只列执照上能逐字对得上的信息，不添加任何认证类字眼。
+      -->
+      <h4 class="text-xs font-bold text-slate-500 uppercase tracking-[0.15em] mb-4">Legal Entity</h4>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-4 text-xs leading-relaxed text-slate-500">
+        <div>
+          <p class="text-slate-400">广州奥格商贸有限公司</p>
+          <p class="mt-1">广州市花都区新华街碧秀路12号(部位:3楼301室)</p>
+        </div>
+        <div>
+          <p class="text-slate-400">GuangZhou Organik Business Co., Ltd</p>
+          <p class="mt-1">ROOM 301, No.12, BIXIU ROAD, XINHUA STREET, HUADU DISTRICT, GUANGZHOU CITY</p>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <p>&copy; {year} Jungle Elite. All rights reserved.</p>
+        <div class="flex items-center gap-6">
+          <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+          <a href="/terms" class="hover:text-white transition-colors">Terms of Service</a>
+        </div>
       </div>
     </div>
   </div>
