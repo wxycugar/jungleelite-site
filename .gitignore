@@ -10,3 +10,7 @@ dist
 .env
 .env.*
 !.env.example
+
+# VS Code 工作区文件：记录的是本机的目录布局（如 ../jungleelite-cms），
+# 只对当前这台机器有意义
+*.code-workspace
