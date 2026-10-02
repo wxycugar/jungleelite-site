@@ -8,6 +8,7 @@ import {
   matchBlacklist,
 } from '@/lib/spam-filter';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { forwardInquiry } from '@/lib/workstation';
 
 /**
  * 询盘接收端：本地 SSR API，取代原先的 Web3Forms 第三方中转。
@@ -18,7 +19,8 @@ import { verifyTurnstile } from '@/lib/turnstile';
  *   3. IP 限流         —— 零成本（进程内计数）
  *   4. Turnstile 校验  —— 一次外网请求，Fail Open
  *   5. 语义特征        —— 零成本；黑名单静默丢弃，软标记改写标题
- *   6. 发信            —— 最贵，放最后
+ *   6. 推送中央工作台  —— 一次外网请求，4s 超时；失败只记备注，绝不阻断第 7 步
+ *   7. 发信            —— 兜底通知；只有这一步失败，才如实告知访客没发出去
  */
 
 export const prerender = false;
@@ -201,7 +203,38 @@ export const POST: APIRoute = async ({ request }) => {
   const tags = buildSubjectTags(message);
   notes.push(...tags.map((tag) => `tag ${tag}`));
 
-  // ---------- 6. 发信 ----------
+  // 两条链路共用同一个时间戳：若各取一次 `new Date()`，邮件与工作台里的
+  // 时间会差出几百毫秒，事后按时间对账就得多费一道手工核对。
+  const submittedAt = new Date().toISOString();
+  const userAgent = request.headers.get('user-agent')?.slice(0, 300) ?? '';
+
+  // ---------- 6. 推送中央工作台（主路；失败不阻断后续） ----------
+  // 放在发信之前：工作台是主路，邮件是兜底，先主后兜。
+  // 代价是网关挂掉时每个询盘要多等 TIMEOUT_MS 才轮到发信——这是刻意接受的，
+  // 见 workstation.ts 里对超时值的说明。
+  const forwarded = await forwardInquiry(
+    { name, company, email, inquiryType: inquiryType || 'unspecified', message },
+    {
+      ip,
+      userAgent,
+      referer: request.headers.get('referer')?.slice(0, 300) ?? '',
+      submittedAt,
+      tags,
+      notes,
+    },
+    { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
+  );
+
+  if (forwarded.ok) {
+    console.log(`[inquiry] 工作台已接收 id=${forwarded.id ?? '(no-id)'}`);
+  } else {
+    // 推送失败不能阻断发信，但必须在邮件里留痕：业务员看到这条备注就知道
+    // 这单只落在邮箱、没进工作台，需要人工补录，而不是当它已经进了系统。
+    console.warn(`[inquiry] 工作台推送未成功：${forwarded.error}（继续走发信兜底）`);
+    notes.push(`workstation: ${forwarded.error}`);
+  }
+
+  // ---------- 7. 发信 ----------
   const recipients = readList('INQUIRY_TO_EMAIL', DEFAULT_RECIPIENTS);
 
   const result = await sendInquiryMail(
@@ -209,8 +242,8 @@ export const POST: APIRoute = async ({ request }) => {
     {
       subjectPrefix: tags.length ? `${tags.join(' ')} ` : '',
       ip,
-      userAgent: request.headers.get('user-agent')?.slice(0, 300) ?? '',
-      submittedAt: new Date().toISOString(),
+      userAgent,
+      submittedAt,
       notes,
     },
     {
