@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { readEnv, readFlag } from '@/lib/env';
+import { readEnv } from '@/lib/env';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
   buildSubjectTags,
@@ -16,8 +16,8 @@ import { forwardInquiry } from '@/lib/workstation';
  *   1. 蜜罐拦截        —— 零成本，静默丢弃并伪装成功
  *   2. 字段校验        —— 零成本
  *   3. IP 限流         —— 零成本（进程内计数）
- *   4. Turnstile 校验  —— 一次外网请求，Fail Open
- *   5. 语义特征        —— 零成本；黑名单静默丢弃，软标记随询盘一并送走
+ *   4. Turnstile 校验  —— 一次外网请求；失败即拒，不再 fail-open
+ *   5. 语义特征        —— 零成本；黑名单静默丢弃，软标记只记入日志
  *   6. 推送中央工作台  —— 唯一的投递出口
  *
  * ⚠️ 第 6 步是这条链路**唯一**的去处：网关不可用时，询盘就是真的没送出去。
@@ -25,6 +25,10 @@ import { forwardInquiry } from '@/lib/workstation';
  * 成功——访客以为发出去了、我们这边什么都没有，线索就静默蒸发了。
  * （业务初期为极简架构移除了原先的 Resend 发信兜底；若要恢复「工作台失败
  * 仍发一封邮件」，在第 6 步那里并行接回一个发信调用即可，git 历史里有实现。）
+ *
+ * 同一原则也适用于第 4 步：Turnstile 的系统级故障（超时 / Secret 缺失 / CF
+ * 自身故障）同样不再放行，而是返回 500 请访客直接发邮件——网关对缺 token 是
+ * 硬拦截，放行换不回访客，只会把「我方故障」伪装成「访客可疑」。
  */
 
 export const prerender = false;
@@ -108,7 +112,6 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const ip = clientIp(request);
-  const notes: string[] = [];
 
   // ---------- 1. 蜜罐拦截（最高优先级，阻断后续一切执行） ----------
   const honeypotHits = findHoneypotHits(payload);
@@ -157,42 +160,51 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  // ---------- 4. Turnstile 网络校验（Fail Open 容灾） ----------
+  // ---------- 4. Turnstile 网络校验（失败即拒，无 fail-open） ----------
+  // 这里原先是 fail-open：系统级故障一律放行。既然网关对缺 token 是硬拦截
+  // （TURNSTILE_MISSING_TOKEN_MODE=block），放行就失去了全部收益——token 还是
+  // 会被网关拒掉，访客白等一个来回，日志里只多一条说不清的 403。现在按责任方
+  // 分开处置：判无效 → 403（访客侧），系统故障/配置缺失 → 500 并请其直接发邮件
+  // （我方侧）。后者绝不能伪装成「你是机器人」，否则连我们自己没配好都看不出来。
   const secretKey = readEnv('TURNSTILE_SECRET_KEY');
-  const siteKey = readEnv('PUBLIC_TURNSTILE_SITE_KEY');
-  const enforceTurnstile = readFlag('TURNSTILE_ENFORCE', true);
   const token = str(payload['cf-turnstile-response'], 4096);
 
   const verdict = await verifyTurnstile(token, secretKey, ip === 'unknown' ? undefined : ip);
 
-  if (verdict.status === 'reject') {
-    const tokenMissing = verdict.codes.includes('missing-input-response');
+  if (verdict.status === 'unavailable') {
+    console.error(
+      `[inquiry] Turnstile 不可用（${verdict.reason}）— 已拒收 ip=${ip}；` +
+        '属配置缺失或依赖方故障，请立即排查 TURNSTILE_SECRET_KEY 是否已配置',
+    );
+    return json(
+      {
+        ok: false,
+        error: 'captcha-unavailable',
+        message: `We could not verify your submission right now. Please email us directly at ${FALLBACK_CONTACT}.`,
+      },
+      500,
+    );
+  }
 
-    // 无 token 有三种成因，只有第三种才是「确定的机器人信号」：
-    //   a) 运维主动放宽                  → 放行
-    //   b) 只配了 Secret 没配 Site Key   → 前端根本无从产出 token，属配置缺失 → 放行
-    //   c) 两端都配好了却交白卷          → 拒绝
-    if (tokenMissing && !enforceTurnstile) {
-      notes.push('turnstile: 无 token（TURNSTILE_ENFORCE=false 已放宽）');
-      console.warn(`[inquiry] 无 Turnstile token，按宽松模式放行 ip=${ip}`);
-    } else if (tokenMissing && !siteKey) {
-      notes.push('turnstile: 未配置 PUBLIC_TURNSTILE_SITE_KEY（fail open）');
-      console.warn('[inquiry] 前端未配置 Site Key，不可能产出 token — 放行（fail open）');
-    } else {
-      console.warn(`[inquiry] Turnstile 判定失败 ${verdict.codes.join(',')} ip=${ip}`);
-      return json(
-        {
-          ok: false,
-          error: 'captcha-failed',
-          message:
-            'Human verification failed. Please refresh the page and try again, or email us at info@jungleelite.com.',
-        },
-        403,
-      );
-    }
-  } else if (verdict.reason) {
-    // 系统级错误下的人为放行——记录在案，便于事后排查是否被刷。
-    notes.push(`turnstile: fail-open (${verdict.reason})`);
+  if (verdict.status === 'reject') {
+    // 无 token 的常见成因是广告拦截器屏蔽了 Turnstile SDK，或前端没配 Site Key。
+    // 两者都不是「确定是机器人」，但在网关硬拦截的前提下放行毫无意义，不如就在
+    // 这里拒掉——访客当场看到明确出路，好过绕一圈再拿回一个 403。
+    const tokenMissing = verdict.codes.includes('missing-input-response');
+    console.warn(
+      `[inquiry] Turnstile 判定失败 ${verdict.codes.join(',')} ip=${ip}` +
+        (tokenMissing
+          ? '（无 token：多为广告拦截器屏蔽 SDK，或未配置 PUBLIC_TURNSTILE_SITE_KEY）'
+          : ''),
+    );
+    return json(
+      {
+        ok: false,
+        error: 'captcha-failed',
+        message: `Human verification failed. Please refresh the page and try again, or email us at ${FALLBACK_CONTACT}.`,
+      },
+      403,
+    );
   }
 
   // ---------- 5. 语义特征与软标记 ----------
@@ -205,17 +217,20 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const tags = buildSubjectTags(message);
-  notes.push(...tags.map((tag) => `tag ${tag}`));
 
   // ---------- 6. 推送中央工作台（唯一投递出口） ----------
-  // 只送网关认得的字段：表单内容 + Turnstile token + 来源页面。
-  // 时间戳、IP、UA 一律不送——网关按收到时刻自己打时间戳，IP/UA/geo 也从连接
-  // 本身取；我们送过去的那份只会进它的 extra JSON，是纯噪音。
+  // 只送网关认得的字段：表单内容 + 项目类型 + Turnstile token + 来源页面 + 访客 IP。
+  // 时间戳与 UA 不送——网关按收到时刻自己打时间戳、UA 从连接本身取，我们送过去
+  // 的那份只会沉进它的 extra JSON，是纯噪音。
+  // IP 是唯一的例外：网关只认 CF-Connecting-IP，而服务端请求里那个头由 Cloudflare
+  // 写成我们这台的出口 IP（Vercel 的），不是访客的。必须由我们显式带过去，否则
+  // 全站询盘共用一个 IP，网关那条按 IP 的限流桶也会退化成整站一个（见 lib/workstation.ts）。
   const forwarded = await forwardInquiry(
-    { name, company, email, formKey: inquiryType || 'contact', message },
+    { name, company, email, projectType: inquiryType, message },
     {
       pageUrl: request.headers.get('referer')?.slice(0, 300) ?? '',
       turnstileToken: token,
+      visitorIp: ip === 'unknown' ? '' : ip,
     },
     { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
   );
@@ -241,7 +256,7 @@ export const POST: APIRoute = async ({ request }) => {
   // 这行日志是两个系统之间唯一能对上号的东西。
   console.log(
     `[inquiry] 已推送 ref=${forwarded.reference ?? '(no-ref)'} ip=${ip} ` +
-      `tags=${tags.join(' ') || 'none'} notes=${notes.join(' | ') || 'none'}`,
+      `tags=${tags.join(' ') || 'none'}`,
   );
 
   // 不回传网关的记录 id：那是内部标识，对访客没有意义，前端也不消费，

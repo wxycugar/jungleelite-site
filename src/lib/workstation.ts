@@ -5,10 +5,14 @@
  * 记在这里，改本文件前先看一遍：
  *   - 租户靠 `site` / `site_key` / `X-Site-Key` 头识别，**网关不读 `site_id`**。
  *     识别不到就返回 404 unknown_site，所以字段和请求头两个都带上做双保险。
- *   - 网关会**自己再验一次 Turnstile**，token 必须原样转发过去。
- *   - 网关不再读 `submitted_at`（它按收到时刻自己打时间戳），IP / UA / geo 也从
- *     连接本身取，这些都不必也不能由我们提供。
- *   - 嵌套对象会被网关的 extractExtra 整块丢弃，所以这里一律平铺，不套 meta。
+ *   - 网关会**自己再验一次 Turnstile**，token 必须原样转发过去。它那边对缺
+ *     token 是硬拦截，所以本站的校验也不再放行（见 lib/turnstile.ts）。
+ *   - `form_key` 是**表单标识**（可查询列），不是业务字段。本站只有一个询盘
+ *     表单，故恒定送 'contact'；项目类型走 `project_type`（见 buildBody）。
+ *   - 网关的 `extractExtra` 会把「值是对象」的字段整块丢掉，嵌套就是丢数据。
+ *     要进它的 extra JSON，只能平铺成顶层标量。
+ *   - 网关不再读 `submitted_at`（它按收到时刻自己打时间戳），UA / geo 也从连接
+ *     本身取。IP 例外：见下面 x-forwarded-for 的说明。
  *
  * 接口地址与密钥一律走环境变量，不硬编码：
  *   WORKSTATION_API_URL  必须是完整端点，含路径：
@@ -33,8 +37,8 @@ export interface WorkstationPayload {
   name: string;
   company: string;
   email: string;
-  /** 对应网关的 `form_key` 列——网关没有 `inquiry_type` 这个字段。 */
-  formKey: string;
+  /** 业务项目类型（OEM / ODM、打样、现货…）。不是表单标识，别塞进 form_key。 */
+  projectType: string;
   message: string;
 }
 
@@ -43,6 +47,8 @@ export interface WorkstationContext {
   pageUrl: string;
   /** 前端拿到的 Turnstile token，网关要拿它去 Cloudflare 再验一次。 */
   turnstileToken: string;
+  /** 访客真实 IP；取不到时为空串（此时不发 x-forwarded-for 头）。 */
+  visitorIp: string;
 }
 
 export type WorkstationResult =
@@ -61,18 +67,28 @@ export type WorkstationResult =
  * 做 AI 解析，这里臆测一个字，下游就会当成客户原话扩散出去。
  */
 function buildBody(payload: WorkstationPayload, ctx: WorkstationContext): Record<string, unknown> {
-  return {
+  const body: Record<string, unknown> = {
     site: SITE_KEY,
-    form_key: payload.formKey,
+    // 恒定 'contact'：form_key 标识的是「哪个表单」，本站只有这一个询盘表单。
+    // 项目类型是业务内容，塞进这里会污染网关按表单维度的统计与筛选。
+    form_key: 'contact',
     page_url: ctx.pageUrl,
     name: payload.name,
     company: payload.company,
     email: payload.email,
     message: payload.message,
-    // 网关缺这个 token 时会按垃圾邮件处理（TURNSTILE_MISSING_TOKEN_MODE 默认
-    // block），因此原样转发、不做省略也不填占位符，缺了就让网关如实判缺。
+    // 网关缺这个 token 时会按垃圾邮件硬拦（TURNSTILE_MISSING_TOKEN_MODE=block），
+    // 因此原样转发、不做省略也不填占位符，缺了就让网关如实判缺。
     'cf-turnstile-response': ctx.turnstileToken,
   };
+
+  // 项目类型平铺成顶层标量，而不是包一层 `extra: { ... }`：网关的 extractExtra
+  // 会跳过一切「值是对象」的字段，包起来等于把数据扔掉，而且丢得悄无声息。
+  // `project_type` 不在它的 RESERVED_FIELDS 里，网关会自动收进自己的 extra JSON
+  // ——正是我们要它去的位置。访客没选时不发，省得给网关塞一个空字段。
+  if (payload.projectType) body.project_type = payload.projectType;
+
+  return body;
 }
 
 export async function forwardInquiry(
@@ -96,6 +112,13 @@ export async function forwardInquiry(
     'x-site-key': SITE_KEY,
   };
   if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
+
+  // 显式转发访客 IP。网关的 readClientIp 只认 CF-Connecting-IP，而 Cloudflare
+  // 在边缘把这个头写成**我们这台的出口 IP**（Vercel 的），不是访客的——于是
+  // 所有询盘共用一个 IP，ipHash / geo 失真，网关那条按 IP 的限流桶（默认 8/min）
+  // 还会退化成全站共用一个桶。这里把访客真实 IP 附在 X-Forwarded-For 上带过去；
+  // 网关侧改为优先读它才能生效（待办在网关那边）。取不到就不发，不编造。
+  if (ctx.visitorIp) headers['x-forwarded-for'] = ctx.visitorIp;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

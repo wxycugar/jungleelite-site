@@ -6,7 +6,7 @@
  *  - `import.meta.env`  → `astro dev` / 本地构建时 Vite 从 `.env` 载入的值
  *
  * 读取优先级：process.env > import.meta.env > 空字符串。
- * 任何一层取不到都不抛错——调用方据此实现 fail-open 容灾。
+ * 任何一层取不到都返回空串，不抛错——缺值算不算致命，由调用方决定。
  */
 
 function clean(value: unknown): string {
@@ -25,10 +25,4 @@ export function readEnv(key: string): string {
   } catch {
     return '';
   }
-}
-
-export function readFlag(key: string, fallback: boolean): boolean {
-  const raw = readEnv(key).toLowerCase();
-  if (!raw) return fallback;
-  return !['0', 'false', 'no', 'off'].includes(raw);
 }

@@ -250,9 +250,10 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
       script.async = true;
       script.defer = true;
       script.addEventListener('load', () => resolve(turnstileGlobal() ?? null));
-      // 被广告拦截器屏蔽 / 网络失败：返回 null，提交仍继续（fail open）。
+      // 被广告拦截器屏蔽 / 网络失败：返回 null。取不到 token 时提交侧会拦下并
+      // 报错，不再带着空 token 放行——网关对缺 token 是硬拦截，推过去只会换来 403。
       script.addEventListener('error', () => {
-        console.warn('[inquiry] Turnstile SDK 加载失败，将以空 token 提交');
+        console.warn('[inquiry] Turnstile SDK 加载失败，本次提交将被拦下');
         resolve(null);
       });
       document.head.appendChild(script);
@@ -342,7 +343,8 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
       if (!siteKey) return '';
 
       await mount();
-      // mount() 未能拿到 SDK（被拦截/网络失败）时不阻断提交，交由服务端裁决。
+      // mount() 未能拿到 SDK（被拦截 / 网络失败）→ 返回空串，由调用方拦下本次
+      // 提交并提示访客。空 token 送到服务端也只会被拒（那边已无 fail-open）。
       if (!api || !widgetId) return '';
 
       const client = api;
@@ -426,16 +428,34 @@ const labelClass = `block text-xs font-bold uppercase tracking-widest mb-2 ${pal
         if (isAutofilled(trap)) body[trap.name] = '';
       });
 
+      // 取不到 token 就直接拦下、不发请求：网关对缺 token 是硬拦截
+      // （TURNSTILE_MISSING_TOKEN_MODE=block），带着空 token 推过去只会被拒，
+      // 访客白等一个来回。这一步与 Site Key 配没配无关——两种情况都确实无法
+      // 完成人机校验，当场如实报错好过放行后静默失败。
+      let token = '';
       try {
-        // 取 token 失败（超时 / 被拦截器屏蔽）不阻断提交：
-        // 空 token 交给服务端裁决，系统级错误在那边是 fail open 的。
-        try {
-          body['cf-turnstile-response'] = await fetchToken();
-        } catch (error) {
-          console.warn('[inquiry] 获取 Turnstile token 失败，改用空 token 提交', error);
-          body['cf-turnstile-response'] = '';
-        }
+        token = await fetchToken();
+      } catch (error) {
+        console.warn('[inquiry] 获取 Turnstile token 失败（超时 / execute 报错）', error);
+      }
 
+      if (!token) {
+        console.warn(
+          siteKey
+            ? '[inquiry] 未取到 Turnstile token（SDK 被拦截或校验超时），已拦下提交'
+            : '[inquiry] 页面未配置 Turnstile Site Key，任何人都取不到 token — 已拦下提交',
+        );
+        setStatus(
+          `Human verification could not be completed. Please refresh the page and try again, or email us at ${FALLBACK_CONTACT}.`,
+          'error',
+        );
+        setBusy(false);
+        return;
+      }
+
+      body['cf-turnstile-response'] = token;
+
+      try {
         const response = await fetch(form.action, {
           method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json' },
