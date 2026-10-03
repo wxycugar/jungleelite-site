@@ -41,6 +41,20 @@ const { title, description = '', siteUrl = '' } = Astro.props;
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     {description && <meta name="twitter:description" content={description} />}
+
+    {/*
+      流量雷达探针。import.meta.env.PROD 由 Astro 在构建期求值：本地 `astro dev`
+      下整个标签根本不会出现在 HTML 里（而非靠脚本自己判断 host），所以 localhost
+      连一次上报请求都发不出去。defer 保证不阻塞首屏。
+    */}
+    {import.meta.env.PROD && (
+      <script
+        is:inline
+        defer
+        src="https://api.orviabag.com/probe.js"
+        data-site="jungleelite"
+      ></script>
+    )}
   </head>
   
   <body class="bg-white">
