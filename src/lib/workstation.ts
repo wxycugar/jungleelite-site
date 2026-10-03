@@ -1,21 +1,24 @@
 /**
  * 询盘的唯一投递出口：推送到中央智能工作台网关（api.orviabag.com）。
  *
- * 工作台把各独立站的询盘集中沉淀，供后续 AI 解析与流转。这里**没有第二去处**
- * ——推送失败就意味着这条询盘真的没送出去，所以调用方必须把失败如实告诉访客，
- * 不能返回假成功。（业务初期为极简架构移除了原先的 Resend 发信兜底。）
- *
- * 本模块**永不抛错**：任何异常（超时、连接失败、响应畸形）都收敛成返回值。
- * 这样调用方能稳稳拿到失败原因、自己决定怎么告知访客，而不是让异常冒泡成
- * 一个没有信息量的 500。
+ * 契约以网关侧的 `src/routes/inquiry.ts` 为准。几处「照直觉写就会错」的地方
+ * 记在这里，改本文件前先看一遍：
+ *   - 租户靠 `site` / `site_key` / `X-Site-Key` 头识别，**网关不读 `site_id`**。
+ *     识别不到就返回 404 unknown_site，所以字段和请求头两个都带上做双保险。
+ *   - 网关会**自己再验一次 Turnstile**，token 必须原样转发过去。
+ *   - 网关不再读 `submitted_at`（它按收到时刻自己打时间戳），IP / UA / geo 也从
+ *     连接本身取，这些都不必也不能由我们提供。
+ *   - 嵌套对象会被网关的 extractExtra 整块丢弃，所以这里一律平铺，不套 meta。
  *
  * 接口地址与密钥一律走环境变量，不硬编码：
- *   WORKSTATION_API_URL  例如 https://api.orviabag.com/ingest
- *   WORKSTATION_API_KEY  网关侧签发的鉴权密钥
+ *   WORKSTATION_API_URL  必须是完整端点，含路径：
+ *                        https://api.orviabag.com/api/v1/inquiry
+ *   WORKSTATION_API_KEY  网关当前不校验该路由（靠 site_key + CORS 授权），
+ *                        发送是为了将来加鉴权时不必回头改这里。
  */
 
-/** 源站点标识：网关靠它区分这条询盘来自哪个独立站。 */
-const SITE_ID = 'jungleelite';
+/** 租户标识：payload 的 `site` 字段与 `X-Site-Key` 头共用这个值。 */
+const SITE_KEY = 'jungleelite';
 
 /**
  * 超时 4 秒。
@@ -30,50 +33,45 @@ export interface WorkstationPayload {
   name: string;
   company: string;
   email: string;
-  inquiryType: string;
+  /** 对应网关的 `form_key` 列——网关没有 `inquiry_type` 这个字段。 */
+  formKey: string;
   message: string;
 }
 
 export interface WorkstationContext {
-  ip: string;
-  userAgent: string;
-  referer: string;
-  submittedAt: string;
-  /** 软标记（如 [Has Links]），供网关侧排优先级。 */
-  tags: string[];
-  /** 本链路上的处置备注（如 turnstile fail-open），供网关侧判断可信度。 */
-  notes: string[];
+  /** 询盘来自哪个页面，网关写进 `page_url`。 */
+  pageUrl: string;
+  /** 前端拿到的 Turnstile token，网关要拿它去 Cloudflare 再验一次。 */
+  turnstileToken: string;
 }
 
-export type WorkstationResult = { ok: true; id?: string } | { ok: false; error: string };
+export type WorkstationResult =
+  /** `reference` 是网关给这条线索生成的对外编号，日志里用它和网关侧对账。 */
+  | { ok: true; reference?: string }
+  | { ok: false; error: string };
 
 /**
  * 组装推给网关的 JSON。
  *
- * 字段命名用 snake_case，与本文件顶部的 SITE_ID 一致——网关要同时吃多个站点的
- * 数据，命名风格统一比贴合某一站的内部叫法更重要。
+ * 字段名以网关实际读取的为准（form_key / page_url / cf-turnstile-response），
+ * 不沿用本站的内部叫法。
  *
- * 红线：这里只做「表单字段 → 同义字段名」的搬运。表单里没有的东西一律不许出现，
- * 尤其不得凭行业惯例补上 ISO9001 / BSCI 之类的资质字段——网关侧后续要拿这份
- * 数据做 AI 解析，这里臆测一个字，下游就会当成客户原话扩散出去。
- * `meta` 里放的也只有服务端客观观测到的请求痕迹，不含任何推断。
+ * 红线：这里只做「表单字段 → 网关字段」的搬运。表单里没有的东西一律不许出现，
+ * 尤其不得凭行业惯例补上 ISO9001 / BSCI 之类的资质字段——网关侧要拿这份数据
+ * 做 AI 解析，这里臆测一个字，下游就会当成客户原话扩散出去。
  */
 function buildBody(payload: WorkstationPayload, ctx: WorkstationContext): Record<string, unknown> {
   return {
-    site_id: SITE_ID,
-    submitted_at: ctx.submittedAt,
+    site: SITE_KEY,
+    form_key: payload.formKey,
+    page_url: ctx.pageUrl,
     name: payload.name,
     company: payload.company,
     email: payload.email,
-    inquiry_type: payload.inquiryType,
     message: payload.message,
-    meta: {
-      ip: ctx.ip,
-      user_agent: ctx.userAgent,
-      referer: ctx.referer,
-      spam_tags: ctx.tags,
-      review_notes: ctx.notes,
-    },
+    // 网关缺这个 token 时会按垃圾邮件处理（TURNSTILE_MISSING_TOKEN_MODE 默认
+    // block），因此原样转发、不做省略也不填占位符，缺了就让网关如实判缺。
+    'cf-turnstile-response': ctx.turnstileToken,
   };
 }
 
@@ -82,11 +80,22 @@ export async function forwardInquiry(
   ctx: WorkstationContext,
   config: { url: string; apiKey: string },
 ): Promise<WorkstationResult> {
-  // 没配就跳过，而不是发一个必然 401 的请求——那会白白占用 4 秒超时预算。
-  // 返回的原因区分「没配置」与「配了但推送失败」，便于日志里一眼分清是
-  // 忘了加环境变量，还是网关真的挂了。
+  // 地址没配就跳过：没有端点，再怎么重试也无处可送。
   if (!config.url) return { ok: false, error: 'workstation-not-configured' };
-  if (!config.apiKey) return { ok: false, error: 'workstation-key-missing' };
+
+  // 密钥缺失只提示、不拦截。网关当前不校验这个头，为一个暂时无用的变量拒发
+  // 询盘，等于自己给自己制造一次故障。将来网关真加了鉴权再改成硬性要求——
+  // 到那时缺了本来也送不进去，拦截才是对的。
+  if (!config.apiKey) {
+    console.warn('[workstation] 未配置 WORKSTATION_API_KEY，本次不带鉴权头发送');
+  }
+
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    // 双保险：网关优先读 body 里的 site，读不到再读这个头。
+    'x-site-key': SITE_KEY,
+  };
+  if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -94,24 +103,21 @@ export async function forwardInquiry(
   try {
     const res = await fetch(config.url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${config.apiKey}`,
-      },
+      headers,
       body: JSON.stringify(buildBody(payload, ctx)),
       signal: controller.signal,
     });
 
     if (!res.ok) {
-      // 把响应体前 500 字符记下来：401 和 404 的处理方式完全不同，
-      // 只看状态码排查不出「密钥填错」还是「路径写错」。
+      // 把响应体前 500 字符记下来：网关的拒绝原因（unknown_site / turnstile_failed
+      // / rate_limited）全在 body 里，只看状态码排查不出是配置错了还是被判垃圾。
       const detail = await res.text().catch(() => '');
       console.error(`[workstation] HTTP ${res.status} url=${config.url}`, detail.slice(0, 500));
       return { ok: false, error: `workstation-http-${res.status}` };
     }
 
-    const data = (await res.json().catch(() => ({}))) as { id?: string };
-    return { ok: true, id: data.id };
+    const data = (await res.json().catch(() => ({}))) as { reference?: string };
+    return { ok: true, reference: data.reference };
   } catch (error) {
     // 超时（AbortError）与网络异常在这里合流：对调用方而言都是「这条没推上去」，
     // 分开只是为了日志能看出是网络抖动还是网关不响应。

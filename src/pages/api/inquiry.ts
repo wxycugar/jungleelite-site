@@ -207,19 +207,15 @@ export const POST: APIRoute = async ({ request }) => {
   const tags = buildSubjectTags(message);
   notes.push(...tags.map((tag) => `tag ${tag}`));
 
-  const submittedAt = new Date().toISOString();
-  const userAgent = request.headers.get('user-agent')?.slice(0, 300) ?? '';
-
   // ---------- 6. 推送中央工作台（唯一投递出口） ----------
+  // 只送网关认得的字段：表单内容 + Turnstile token + 来源页面。
+  // 时间戳、IP、UA 一律不送——网关按收到时刻自己打时间戳，IP/UA/geo 也从连接
+  // 本身取；我们送过去的那份只会进它的 extra JSON，是纯噪音。
   const forwarded = await forwardInquiry(
-    { name, company, email, inquiryType: inquiryType || 'unspecified', message },
+    { name, company, email, formKey: inquiryType || 'contact', message },
     {
-      ip,
-      userAgent,
-      referer: request.headers.get('referer')?.slice(0, 300) ?? '',
-      submittedAt,
-      tags,
-      notes,
+      pageUrl: request.headers.get('referer')?.slice(0, 300) ?? '',
+      turnstileToken: token,
     },
     { url: readEnv('WORKSTATION_API_URL'), apiKey: readEnv('WORKSTATION_API_KEY') },
   );
@@ -241,9 +237,10 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  // 成功路径也要留痕：网关收了却没落库时，日志是唯一能对上号的东西。
+  // 成功路径也要留痕：带上网关返回的 reference，网关入库了却没生成记录时，
+  // 这行日志是两个系统之间唯一能对上号的东西。
   console.log(
-    `[inquiry] 已推送 id=${forwarded.id ?? '(no-id)'} ip=${ip} ` +
+    `[inquiry] 已推送 ref=${forwarded.reference ?? '(no-ref)'} ip=${ip} ` +
       `tags=${tags.join(' ') || 'none'} notes=${notes.join(' | ') || 'none'}`,
   );
 
